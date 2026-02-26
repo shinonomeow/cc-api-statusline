@@ -152,3 +152,166 @@ describe('custom provider', () => {
     });
   });
 });
+
+import { vi, beforeEach } from 'vitest';
+import { fetchCustom } from '../custom.js';
+import { DEFAULT_CONFIG } from '../../types/config.js';
+import type { Config } from '../../types/index.js';
+
+// Mock the http module for User-Agent tests
+vi.mock('../http.js', () => ({
+  secureFetch: vi.fn(),
+  HttpError: class HttpError extends Error {
+    constructor(message: string, public statusCode?: number) {
+      super(message);
+      this.name = 'HttpError';
+    }
+  },
+}));
+
+describe('custom provider User-Agent', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const { secureFetch } = await import('../http.js');
+    mockFetch = vi.mocked(secureFetch) as unknown as ReturnType<typeof vi.fn>;
+  });
+
+  const mockProviderConfig: CustomProviderConfig = {
+    id: 'test-provider',
+    endpoint: '/api/usage',
+    method: 'GET',
+    auth: {
+      type: 'header',
+      header: 'Authorization',
+      prefix: 'Bearer ',
+    },
+    urlPatterns: ['example.com'],
+    responseMapping: {
+      billingMode: 'subscription',
+      planName: 'Test Plan',
+    },
+  };
+
+  const mockResponse = {
+    billing_mode: 'subscription',
+    plan_name: 'Test Plan',
+  };
+
+  it('respects per-provider User-Agent override', async () => {
+    const providerConfig: CustomProviderConfig = {
+      ...mockProviderConfig,
+      spoofClaudeCodeUA: 'provider-specific/1.0',
+    };
+
+    const globalConfig: Config = {
+      ...DEFAULT_CONFIG,
+      spoofClaudeCodeUA: 'global-ua/1.0',
+    };
+
+    mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+    await fetchCustom('https://api.example.com', 'test-token', globalConfig, providerConfig);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/api/usage',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer test-token',
+          'Accept': 'application/json',
+        }),
+      }),
+      5000,
+      'provider-specific/1.0'
+    );
+  });
+
+  it('falls back to global User-Agent when per-provider not set', async () => {
+    const providerConfig: CustomProviderConfig = {
+      ...mockProviderConfig,
+      // No spoofClaudeCodeUA set
+    };
+
+    const globalConfig: Config = {
+      ...DEFAULT_CONFIG,
+      spoofClaudeCodeUA: 'global-ua/1.0',
+    };
+
+    mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+    await fetchCustom('https://api.example.com', 'test-token', globalConfig, providerConfig);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/api/usage',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer test-token',
+          'Accept': 'application/json',
+        }),
+      }),
+      5000,
+      'global-ua/1.0'
+    );
+  });
+
+  it('uses per-provider false to override global true', async () => {
+    const providerConfig: CustomProviderConfig = {
+      ...mockProviderConfig,
+      spoofClaudeCodeUA: false,
+    };
+
+    const globalConfig: Config = {
+      ...DEFAULT_CONFIG,
+      spoofClaudeCodeUA: true,
+    };
+
+    mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+    await fetchCustom('https://api.example.com', 'test-token', globalConfig, providerConfig);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/api/usage',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer test-token',
+          'Accept': 'application/json',
+        }),
+      }),
+      5000,
+      null
+    );
+  });
+
+  it('uses per-provider true when global is false', async () => {
+    const providerConfig: CustomProviderConfig = {
+      ...mockProviderConfig,
+      spoofClaudeCodeUA: true,
+    };
+
+    const globalConfig: Config = {
+      ...DEFAULT_CONFIG,
+      spoofClaudeCodeUA: false,
+    };
+
+    mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+    await fetchCustom('https://api.example.com', 'test-token', globalConfig, providerConfig);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/api/usage',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          'Authorization': 'Bearer test-token',
+          'Accept': 'application/json',
+        }),
+      }),
+      5000,
+      expect.stringMatching(/^claude-cli\/[\d.]+/)
+    );
+  });
+});
