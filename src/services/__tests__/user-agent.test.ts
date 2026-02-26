@@ -33,7 +33,7 @@ describe('resolveUserAgent', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('claude-cli/2.2.0\n' as any);
+    vi.mocked(execSync).mockReturnValue('claude-cli/2.2.0\n');
 
     const result = resolveUserAgent(true);
     expect(result).toBe('claude-cli/2.2.0 (external, cli)');
@@ -89,7 +89,7 @@ describe('detectClaudeVersion', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('claude-cli/2.1.56\n' as any);
+    vi.mocked(execSync).mockReturnValue('claude-cli/2.1.56\n');
 
     const result = detectClaudeVersion();
     expect(result).toBe('2.1.56');
@@ -105,7 +105,7 @@ describe('detectClaudeVersion', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('2.1.56\n' as any);
+    vi.mocked(execSync).mockReturnValue('2.1.56\n');
 
     const result = detectClaudeVersion();
     expect(result).toBe('2.1.56');
@@ -121,7 +121,7 @@ describe('detectClaudeVersion', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('invalid output\n' as any);
+    vi.mocked(execSync).mockReturnValue('invalid output\n');
 
     const result = detectClaudeVersion();
     expect(result).toBe(null);
