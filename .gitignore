@@ -5,5 +5,7 @@
 dev/
 node_modules/
 dist/
+docs/
 *.tmp
 .env
+docs/README.md
