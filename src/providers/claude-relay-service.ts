@@ -8,6 +8,8 @@
 
 import type { NormalizedUsage, QuotaWindow, Config } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
+import { resolveUserAgent } from '../services/user-agent.js';
+import { logger } from '../services/logger.js';
 
 /**
  * claude-relay-service API response shape
@@ -112,6 +114,12 @@ export async function fetchClaudeRelayService(
 ): Promise<NormalizedUsage> {
   const url = `${baseUrl}/apiStats/api/user-stats`;
 
+  // Resolve User-Agent
+  const resolvedUA = resolveUserAgent(config.spoofClaudeCodeUA);
+  if (resolvedUA) {
+    logger.debug(`Using User-Agent: ${resolvedUA}`);
+  }
+
   const responseText = await secureFetch(
     url,
     {
@@ -122,7 +130,8 @@ export async function fetchClaudeRelayService(
       },
       body: JSON.stringify({ apiKey: token }),
     },
-    timeoutMs
+    timeoutMs,
+    resolvedUA
   );
 
   const response = JSON.parse(responseText) as RelayResponse;
