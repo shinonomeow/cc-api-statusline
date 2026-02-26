@@ -1,0 +1,9 @@
+.agents
+.skills-lock.json
+.claude
+.agent
+dev/
+node_modules/
+dist/
+*.tmp
+.env
