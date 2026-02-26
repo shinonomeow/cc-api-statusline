@@ -172,10 +172,10 @@ export async function secureFetch(
 
   // Add User-Agent header if provided
   if (userAgent) {
-    fetchOptions.headers = {
-      ...options.headers,
-      'User-Agent': userAgent,
-    };
+    // Create a new Headers object from existing headers
+    const headers = new Headers(options.headers);
+    headers.set('User-Agent', userAgent);
+    fetchOptions.headers = headers;
   }
 
   try {

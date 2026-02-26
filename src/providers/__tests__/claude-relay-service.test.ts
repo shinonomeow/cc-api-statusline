@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchClaudeRelayService } from '../claude-relay-service.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
@@ -19,8 +20,8 @@ describe('claude-relay-service provider', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { secureFetch } = await import('../http.js');
-    mockFetch = vi.mocked(secureFetch) as unknown as ReturnType<typeof vi.fn>;
+    const httpModule = await import('../http.js');
+    mockFetch = vi.mocked(httpModule.secureFetch) as unknown as ReturnType<typeof vi.fn>;
   });
 
   const mockResponse = {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, it, expect } from 'vitest';
 import { validateCustomProvider } from '../custom.js';
 import type { CustomProviderConfig } from '../../types/index.js';
@@ -174,8 +175,8 @@ describe('custom provider User-Agent', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { secureFetch } = await import('../http.js');
-    mockFetch = vi.mocked(secureFetch) as unknown as ReturnType<typeof vi.fn>;
+    const httpModule = await import('../http.js');
+    mockFetch = vi.mocked(httpModule.secureFetch) as unknown as ReturnType<typeof vi.fn>;
   });
 
   const mockProviderConfig: CustomProviderConfig = {

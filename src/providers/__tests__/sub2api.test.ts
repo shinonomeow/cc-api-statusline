@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchSub2api } from '../sub2api.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
@@ -19,8 +20,8 @@ describe('sub2api provider', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { secureFetch } = await import('../http.js');
-    mockFetch = vi.mocked(secureFetch) as unknown as ReturnType<typeof vi.fn>;
+    const httpModule = await import('../http.js');
+    mockFetch = vi.mocked(httpModule.secureFetch) as unknown as ReturnType<typeof vi.fn>;
   });
 
   const mockResponse = {
