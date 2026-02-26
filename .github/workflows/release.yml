@@ -33,5 +33,7 @@ jobs:
       - name: Run tests and linting
         run: bun run check
 
-      - name: Publish to npm with provenance
-        run: npm publish --provenance --access public
+      - name: Publish to npm (first time with token)
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
