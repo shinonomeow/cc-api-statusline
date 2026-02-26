@@ -13,16 +13,20 @@ Core pipeline:
 
 As of this repository state:
 
-- Unified execution core is implemented (`src/core/execute-cycle.ts`) with Path A/B/C/D flow.
-- Piped mode is the primary production path and is performance-gated.
-- `--once` mode (TTY) is implemented for one-shot local fetch/render.
-- Interactive TTY mode without `--once` is a placeholder message and exits.
-- Full test suite is green via `bun run check`.
+- **Production-ready** with auto-setup, debug logging, and CI/CD
+- Unified execution core implemented (`src/core/execute-cycle.ts`) with Path A/B/C/D flow
+- Piped mode is the primary production path with ANSI reset + NBSP formatting
+- `--once` mode (TTY) implemented for one-shot local fetch/render
+- `--install`/`--uninstall` commands for auto-setup in Claude Code
+- Debug logging system (`DEBUG=1`) writes to `~/.claude/cc-api-statusline/debug.log`
+- Dynamic version from `package.json`
+- Exit code 0 when showing stale cache with error indicators (not confusing host)
+- Full test suite green: **356 tests** across **21 files**
+- GitHub Actions CI/CD for testing and npm publish
 
 Known open items:
 
-1. `--version` output is hardcoded in `src/main.ts`.
-2. Interactive TTY mode is not implemented beyond placeholder output.
+1. Interactive TTY mode is not implemented beyond placeholder output
 
 ---
 
@@ -34,6 +38,7 @@ Known open items:
 - Tests: Vitest
 - Lint: ESLint
 - Runtime deps: none
+- CI/CD: GitHub Actions
 
 ---
 
@@ -48,8 +53,13 @@ Use these commands in this order:
 
 `package.json` scripts:
 
+- `start`: `bun run src/main.ts --once` (quick dev fetch)
+- `dev`: `bun run src/main.ts` (TTY mode, future TUI)
+- `example`: `cat docs/fixtures/ccstatusline-context.sample.json | bun run src/main.ts` (piped simulation)
 - `test`: `bun run build && vitest run`
-- `check`: `bun run test && bun run lint`
+- `test:watch`: `vitest` (watch mode)
+- `check`: `bun run test && bun run lint` (full gate)
+- `build`: Build to dist/
 
 ---
 
@@ -57,11 +67,12 @@ Use these commands in this order:
 
 - Config path default: `~/.claude/cc-api-statusline/config.json`
 - Cache path default: `~/.claude/cc-api-statusline/cache-<hash>.json`
+- Debug log path: `~/.claude/cc-api-statusline/debug.log` (when `DEBUG=1`)
 - `settings.json` overlay path:
   - `CLAUDE_CONFIG_DIR/settings.json` if `CLAUDE_CONFIG_DIR` is set
   - otherwise `~/.claude/settings.json`
 
-Important: code currently uses `~/.claude/cc-api-statusline` for both config and cache.
+Important: code currently uses `~/.claude/cc-api-statusline` for config, cache, and logs.
 
 ---
 
@@ -75,7 +86,9 @@ Important: code currently uses `~/.claude/cc-api-statusline` for both config and
 | `CC_STATUSLINE_POLL` | No | Poll interval override (seconds, default 30) |
 | `CC_STATUSLINE_TIMEOUT` | No | Piped-mode timeout budget ms (default `1000`) |
 | `CC_API_STATUSLINE_CACHE_DIR` | No | Cache dir override (tests/dev) |
+| `CC_API_STATUSLINE_LOG_DIR` | No | Debug log dir override |
 | `CLAUDE_CONFIG_DIR` | No | `settings.json` overlay location |
+| `DEBUG` or `CC_STATUSLINE_DEBUG` | No | Enable debug logging |
 
 Security rule: never log or persist plaintext tokens.
 
@@ -108,12 +121,14 @@ Security rule: never log or persist plaintext tokens.
 - `src/services/config.ts`
 - `src/services/cache.ts`
 - `src/services/hash.ts`
+- `src/services/settings.ts` (Claude Code settings.json management)
+- `src/services/logger.ts` (debug logging system)
 
 ### Renderer
 
 - `src/renderer/colors.ts`
 - `src/renderer/bar.ts`
-- `src/renderer/countdown.ts`
+- `src/renderer/countdown.ts` (default divider: ` · ` space-dot-space)
 - `src/renderer/icons.ts`
 - `src/renderer/component.ts`
 - `src/renderer/error.ts`
@@ -131,24 +146,63 @@ Security rule: never log or persist plaintext tokens.
 
 ## Behavior Guarantees To Preserve
 
-1. Piped stdin is accepted and discarded (not used for provider data).
-2. Fast path uses cached `renderedLine` when cache validity + provider + `configHash` match.
-3. Config hash uses raw config bytes for fast-path checks.
-4. Cache writes are atomic (`.tmp` + `rename`) and non-fatal.
-5. Renderer is null-tolerant; missing fields degrade gracefully.
-6. Piped mode must prefer fallback output over host timeout failure.
+1. Piped stdin is accepted and discarded (not used for provider data)
+2. Fast path uses cached `renderedLine` when cache validity + provider + `configHash` match
+3. Config hash uses raw config bytes for fast-path checks
+4. Cache writes are atomic (`.tmp` + `rename`) and non-fatal
+5. Renderer is null-tolerant; missing fields degrade gracefully
+6. Piped mode must prefer fallback output over host timeout failure
+7. Piped mode applies ANSI reset (`\x1b[0m`) and NBSP replacement for Claude Code compatibility
+8. Exit code 0 when stale cache shown with error indicators (avoids confusing `[Exit: 1]` in widget)
 
 ---
 
 ## Testing Notes
 
-- Full suite currently: `333` tests across `20` files.
+- Full suite currently: **356 tests** across **21 files**
 - Perf/E2E tests are hermetic:
-  - build `dist` first via script,
-  - isolate env (`CLAUDE_CONFIG_DIR`, `CC_API_STATUSLINE_CACHE_DIR`),
-  - assert cache-path behavior.
+  - build `dist` first via script
+  - isolate env (`CLAUDE_CONFIG_DIR`, `CC_API_STATUSLINE_CACHE_DIR`)
+  - assert cache-path behavior
+- Performance target: p95 < 600ms (protects 1s piped timeout budget)
 
 If tests fail only when run in parallel sessions, re-run `bun run check` sequentially.
+
+---
+
+## Debug Logging
+
+Enable with `DEBUG=1` or `CC_STATUSLINE_DEBUG=1`:
+
+```bash
+# View logs in real-time
+tail -f ~/.claude/cc-api-statusline/debug.log
+
+# Enable for Claude Code widget
+# In ~/.claude/settings.json:
+{
+  "statusLine": {
+    "type": "command",
+    "command": "DEBUG=1 bunx -y cc-api-statusline@latest",
+    "padding": 0
+  }
+}
+```
+
+Logs include: execution paths, fetch timing, cache operations, error details.
+
+---
+
+## Auto-Setup Commands
+
+```bash
+# Install as Claude Code statusline widget
+node dist/cc-api-statusline.js --install
+node dist/cc-api-statusline.js --install --runner bunx
+
+# Uninstall
+node dist/cc-api-statusline.js --uninstall
+```
 
 ---
 
@@ -178,8 +232,10 @@ If tests fail only when run in parallel sessions, re-run `bun run check` sequent
 
 ## Takeover Checklist For New Agent
 
-1. Run `bun run check` and confirm green.
-2. Read authoritative docs first (`docs/README.md` -> `docs/implementation-handbook.md`).
-3. Confirm open gaps (version sourcing, interactive TTY mode).
-4. Preserve unified execution core behavior when refactoring.
-5. Re-run `bun run check` before any completion claim.
+1. Run `bun run check` and confirm green (356 tests)
+2. Read authoritative docs first (`docs/README.md` -> `docs/implementation-handbook.md`)
+3. Confirm remaining gap: interactive TTY mode placeholder
+4. Preserve unified execution core behavior when refactoring
+5. Preserve exit code semantics (0 for stale cache, 1 only for no-data errors)
+6. Preserve piped mode formatting (ANSI reset + NBSP)
+7. Re-run `bun run check` before any completion claim

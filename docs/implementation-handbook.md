@@ -48,9 +48,13 @@ Mode is determined in `main.ts`:
 ### 2.2 CLI flags
 
 - `--help`, `-h`
-- `--version`, `-v` (currently hardcoded as `v0.1.0`)
+- `--version`, `-v` (reads dynamically from `package.json`)
 - `--once`
 - `--config <path>`
+- `--install` (register as Claude Code statusline widget)
+- `--uninstall` (remove statusline widget registration)
+- `--runner <npx|bunx>` (specify package runner for install, default: auto-detect)
+- `--force` (force overwrite existing statusline configuration)
 
 ### 2.3 Environment variables
 
@@ -65,7 +69,9 @@ Optional:
 - `CC_STATUSLINE_POLL` (seconds, min 5, default 30)
 - `CC_STATUSLINE_TIMEOUT` (piped total timeout budget ms, default 1000)
 - `CC_API_STATUSLINE_CACHE_DIR` (cache dir override)
+- `CC_API_STATUSLINE_LOG_DIR` (debug log dir override)
 - `CLAUDE_CONFIG_DIR` (for `settings.json` overlay path)
+- `DEBUG` or `CC_STATUSLINE_DEBUG` (enable debug logging to `~/.claude/cc-api-statusline/debug.log`)
 
 ### 2.4 settings.json overlay precedence
 
@@ -460,10 +466,8 @@ Guidelines:
 
 ## 13. Known Gaps and Risks
 
-1. `--version` remains hardcoded in `main.ts`
-2. interactive TTY mode is placeholder-only
-3. `executeCycle` fetch-failure path currently returns non-zero exit even when cached data exists; this can degrade ccstatusline widget UX (host may render `[Exit: N]`)
-4. cache schema includes `errorState`, but fetch-created cache entries in `executeCycle` currently do not explicitly populate it
+1. Interactive TTY mode is placeholder-only (future: TUI configuration interface)
+2. Cache schema includes `errorState`, but fetch-created cache entries in `executeCycle` currently do not explicitly populate it
 
 ## 14. Change Checklist (for new features/refactors)
 

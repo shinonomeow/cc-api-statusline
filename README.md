@@ -10,8 +10,9 @@ A high-performance TUI statusline tool that polls API usage data from Claude API
 - 🎨 **Highly configurable** — Layouts, colors, bar styles, display modes
 - 🔌 **Provider autodetection** — Works with sub2api, claude-relay-service, custom providers
 - 💾 **Smart caching** — Disk cache with atomic writes, TTL validation
-- 🎯 **ccstatusline integration** — Drop-in Custom Command widget
+- 🎯 **Claude Code integration** — Auto-setup with `--install` command
 - 📊 **Multiple components** — Daily/weekly/monthly quotas, balance, tokens, rate limits
+- 🐛 **Debug logging** — Detailed execution logs for troubleshooting
 
 ## Installation
 
@@ -23,13 +24,44 @@ npm install -g cc-api-statusline
 bun add -g cc-api-statusline
 
 # From source
-git clone https://github.com/anthropics/cc-api-statusline
+git clone https://github.com/liafonx/cc-api-statusline
 cd cc-api-statusline
 bun install
 bun run build
 ```
 
 ## Quick Start
+
+### Claude Code Integration (Recommended)
+
+The easiest way to use cc-api-statusline is with auto-setup:
+
+```bash
+# Set required environment variables first
+export ANTHROPIC_BASE_URL="https://your-proxy.example.com"
+export ANTHROPIC_AUTH_TOKEN="your-api-token"
+
+# Install as Claude Code statusline widget
+npx cc-api-statusline --install
+
+# Or with bunx (auto-detects if available)
+bunx cc-api-statusline --install --runner bunx
+
+# Uninstall
+npx cc-api-statusline --uninstall
+```
+
+This automatically adds to `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bunx -y cc-api-statusline@latest",
+    "padding": 0
+  }
+}
+```
 
 ### Standalone Mode
 
@@ -45,7 +77,7 @@ cc-api-statusline --once
 cc-api-statusline --config ./my-config.json
 ```
 
-### ccstatusline Integration
+### ccstatusline Custom Command (Legacy)
 
 Add to your `~/.claude/ccstatusline/config.json`:
 
@@ -157,6 +189,7 @@ Override global settings per component:
       "color": "chill",
       "countdown": {
         "format": "duration",
+        "divider": " · ",
         "prefix": "⏱ "
       }
     },
@@ -170,6 +203,8 @@ Override global settings per component:
   }
 }
 ```
+
+**Note:** Countdown divider defaults to ` · ` (space-dot-space) for clean spacing.
 
 ### Color Configuration
 
@@ -238,6 +273,7 @@ Override global settings per component:
 | `CC_STATUSLINE_PROVIDER` | No | Override provider detection (`sub2api`, `claude-relay-service`, or custom) |
 | `CC_STATUSLINE_POLL` | No | Override poll interval (seconds, min 5) |
 | `CC_STATUSLINE_TIMEOUT` | No | Piped mode timeout (milliseconds, default 1000) |
+| `DEBUG` or `CC_STATUSLINE_DEBUG` | No | Enable debug logging to `~/.claude/cc-api-statusline/debug.log` |
 
 ## Provider Setup
 
@@ -291,7 +327,52 @@ cc-api-statusline --once
 
 # Use custom config file
 cc-api-statusline --config /path/to/config.json
+
+# Install as Claude Code statusline widget
+cc-api-statusline --install
+cc-api-statusline --install --runner bunx
+cc-api-statusline --install --force  # Overwrite existing
+
+# Uninstall from Claude Code
+cc-api-statusline --uninstall
 ```
+
+## Debug Logging
+
+Enable detailed execution logs for troubleshooting:
+
+```bash
+# Enable debug logging
+DEBUG=1 cc-api-statusline --once
+
+# For Claude Code widget, add to settings.json:
+{
+  "statusLine": {
+    "type": "command",
+    "command": "DEBUG=1 bunx -y cc-api-statusline@latest",
+    "padding": 0
+  }
+}
+
+# View logs in real-time
+tail -f ~/.claude/cc-api-statusline/debug.log
+
+# View recent logs
+tail -20 ~/.claude/cc-api-statusline/debug.log
+
+# Search for errors
+grep "ERROR" ~/.claude/cc-api-statusline/debug.log
+```
+
+Debug logs include:
+- Execution start/finish timestamps
+- Mode detection (piped vs TTY)
+- Environment variables (sanitized)
+- Config and cache status
+- Execution paths taken (A/B/C/D)
+- Fetch timing and performance metrics
+- Cache operations
+- Error details with fallback behavior
 
 ## Performance
 
@@ -308,6 +389,10 @@ Cache validation:
 - Base URL match
 - Version match
 - Token hash match
+
+Exit code behavior:
+- Returns `0` when stale cache is shown with error indicators (output is still useful)
+- Returns `1` only when no data can be shown (prevents confusing `[Exit: 1]` in widgets)
 
 ## Troubleshooting
 
@@ -343,7 +428,14 @@ Or define a custom provider in config.json.
 
 ### "[offline]" or "[stale]" indicator
 
-Network error or cache staleness. Check:
+Network error or cache staleness. Enable debug logging to investigate:
+
+```bash
+DEBUG=1 cc-api-statusline --once
+tail -f ~/.claude/cc-api-statusline/debug.log
+```
+
+Check:
 - Network connectivity to `ANTHROPIC_BASE_URL`
 - API endpoint is responding
 - Token is valid and not expired
@@ -354,28 +446,35 @@ Check cache validity:
 - Run `cc-api-statusline --once` standalone to warm cache
 - Verify `~/.claude/cc-api-statusline/cache-*.json` exists
 - Check `pipedRequestTimeoutMs` config (default 800ms)
+- Enable debug logging to see fetch timing
 
-### ANSI codes visible in output
+### Widget shows `[Exit: 1]` in Claude Code
 
-If using ccstatusline, set `preserveColors: true` in widget config:
+This indicates the statusline command failed. Enable debug logging:
 
 ```json
 {
-  "widgets": [
-    {
-      "type": "customCommand",
-      "command": "usage",
-      "preserveColors": true
-    }
-  ]
+  "statusLine": {
+    "type": "command",
+    "command": "DEBUG=1 bunx -y cc-api-statusline@latest",
+    "padding": 0
+  }
 }
 ```
+
+Then check logs: `tail -f ~/.claude/cc-api-statusline/debug.log`
 
 ## Development
 
 ```bash
 # Install dependencies
 bun install
+
+# Quick dev fetch (--once mode)
+bun run start
+
+# Simulate piped mode
+bun run example
 
 # Run tests
 bun test
@@ -394,7 +493,7 @@ bun run check
 
 ```
 ┌─────────────┐
-│   main.ts   │ ← Entry point, CLI orchestration
+│   main.ts   │ ← Entry point, CLI orchestration, install/uninstall
 └──────┬──────┘
        │
        ├──────────────────────────────────────┐
@@ -404,10 +503,15 @@ bun run check
 │  - env        │                   │  - sub2api      │
 │  - cache      │                   │  - relay        │
 │  - config     │                   │  - custom       │
-│  - polling    │                   │  - autodetect   │
-└──────┬────────┘                   └────────┬────────┘
+│  - settings   │ ← settings.json   │  - autodetect   │
+│  - logger     │ ← debug logging   └────────┬────────┘
+└──────┬────────┘                            │
        │                                      │
        ├──────────────────────────────────────┘
+       │
+┌──────▼────────┐
+│ execute-cycle │ ← Unified execution (Path A/B/C/D)
+└──────┬────────┘
        │
 ┌──────▼────────┐
 │   renderer/   │
@@ -422,6 +526,17 @@ bun run check
 └───────────────┘
 ```
 
+## Testing
+
+- **356 tests** across **21 test files**
+- Unit tests for all services and renderers
+- Core execution path tests (A/B/C/D)
+- E2E smoke tests with isolated environments
+- Performance tests (p95 < 600ms verification)
+- CI/CD via GitHub Actions
+
+Run: `bun run check`
+
 ## License
 
 MIT
@@ -429,6 +544,8 @@ MIT
 ## Links
 
 - [Implementation Handbook](docs/implementation-handbook.md)
+- [Current Implementation](docs/current-implementation.md)
 - [TUI Style Spec](docs/spec-tui-style.md)
 - [API Polling Spec](docs/spec-api-polling.md)
 - [Custom Providers Spec](docs/spec-custom-providers.md)
+- [AGENTS.md](AGENTS.md) - Development handoff guide

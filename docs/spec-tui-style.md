@@ -275,7 +275,7 @@ Accepts `true` (show with defaults), `false` (hide), or an object:
 
 | Key | Values | Default | Description |
 |---|---|---|---|
-| `divider` | string | `"·"` | Char between usage value and countdown |
+| `divider` | string | `" · "` | Separator between usage value and countdown (space-dot-space) |
 | `prefix` | string | `""` | Text before the time (e.g. `"resets "`) |
 | `format` | `"auto"` / `"duration"` / `"time"` | `"auto"` | How to display the reset time |
 
