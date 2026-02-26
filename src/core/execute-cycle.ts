@@ -15,6 +15,7 @@ import { renderStatusline } from '../renderer/index.js';
 import { renderError } from '../renderer/error.js';
 import type { CacheEntry } from '../types/index.js';
 import { CACHE_VERSION } from '../types/index.js';
+import { logger } from '../services/logger.js';
 
 /**
  * Execute a single statusline cycle
@@ -34,6 +35,9 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
     if (isCacheValid(cachedEntry, env) && isCacheProviderValid(cachedEntry, providerId)) {
       if (cachedEntry.renderedLine && isCacheRenderedLineUsable(cachedEntry, configHash)) {
         // Fast path: return cached rendered line
+        logger.debug('Path A: Fast path (cached renderedLine)', {
+          cacheAge: `${Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 1000)}s`
+        });
         return {
           output: cachedEntry.renderedLine,
           exitCode: 0,
@@ -46,6 +50,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
   // Path B: Cache data valid but renderedLine stale → re-render
   if (cachedEntry && isCacheValid(cachedEntry, env) && isCacheProviderValid(cachedEntry, providerId)) {
     // Re-render from cached data
+    logger.debug('Path B: Re-render (config changed, cache data valid)');
     const statusline = renderStatusline(cachedEntry.data, config);
 
     // Update cache with new renderedLine and configHash
@@ -70,6 +75,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
   // Guard: insufficient time budget
   if (remainingBudget <= 50) {
     // Path D: Fallback - use stale cache or loading message
+    logger.debug('Path D: Timeout fallback (insufficient budget)', { remainingBudget });
     if (cachedEntry && cachedEntry.renderedLine) {
       return {
         output: cachedEntry.renderedLine,
@@ -99,7 +105,11 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       };
     }
 
+    logger.debug('Path C: Fetching from provider', { providerId, fetchTimeoutMs });
+    const fetchStart = Date.now();
     const data = await provider.fetch(baseUrl, authToken, fetchTimeoutMs);
+    const fetchTime = Date.now() - fetchStart;
+    logger.debug('Fetch completed', { fetchTime: `${fetchTime}ms` });
 
     // Render statusline
     const statusline = renderStatusline(data, config);
@@ -125,11 +135,13 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       exitCode: 0,
       cacheUpdate: newEntry,
     };
-  } catch {
+  } catch (error: unknown) {
     // Path D: Fetch error - use stale cache with error indicator or error message
+    logger.error('Path D: Fetch error', { error: String(error), hasCachedEntry: !!cachedEntry });
     if (cachedEntry) {
       const ageMinutes = Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 60000);
       const statusline = renderStatusline(cachedEntry.data, config, 'network-error', ageMinutes);
+      logger.debug('Using stale cache with error indicator', { ageMinutes });
       return {
         output: statusline,
         exitCode: 0, // Changed from 1 - stale cache output is still useful
@@ -137,6 +149,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       };
     } else {
       // No cache available
+      logger.warn('No cache available for error fallback');
       const errorOutput = renderError('network-error', 'without-cache', providerId);
       return {
         output: errorOutput,

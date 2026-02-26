@@ -19,6 +19,7 @@ import {
   getExistingStatusLine,
   isBunxAvailable,
 } from './services/settings.js';
+import { logger } from './services/logger.js';
 import pkg from '../package.json' with { type: 'json' };
 
 /**
@@ -99,6 +100,7 @@ Environment Variables:
   CC_STATUSLINE_PROVIDER   Override provider detection
   CC_STATUSLINE_POLL       Override poll interval (seconds)
   CC_STATUSLINE_TIMEOUT    Piped mode timeout (milliseconds, default 1000)
+  DEBUG or CC_STATUSLINE_DEBUG  Enable debug logging to ~/.claude/cc-api-statusline/debug.log
 
 Config File:
   ~/.claude/cc-api-statusline/config.json
@@ -137,11 +139,15 @@ async function main(): Promise<void> {
   // Record start time for deadline tracking
   const startTime = Date.now();
 
+  logger.debug('=== cc-api-statusline execution started ===');
+  logger.debug('Start time', { startTime, version: pkg.version });
+
   // Discard stdin
   discardStdin();
 
   // Parse arguments
   const args = parseArgs();
+  logger.debug('Parsed arguments', { args });
 
   if (args.help) {
     showHelp();
@@ -194,6 +200,7 @@ async function main(): Promise<void> {
 
   // Detect mode: piped (stdin not TTY) or TTY
   const isPiped = !process.stdin.isTTY;
+  logger.debug('Mode detection', { isPiped, once: args.once });
 
   // Interactive TUI mode (future)
   if (!isPiped && !args.once) {
@@ -205,6 +212,12 @@ async function main(): Promise<void> {
 
   // Read current environment
   const env = readCurrentEnv();
+  logger.debug('Environment loaded', {
+    baseUrl: env.baseUrl ? `${env.baseUrl.substring(0, 30)}...` : undefined,
+    hasToken: !!env.authToken,
+    providerOverride: env.providerOverride,
+    pollIntervalOverride: env.pollIntervalOverride
+  });
 
   // Validate required env vars
   const envError = validateRequiredEnv(env);
@@ -226,6 +239,7 @@ async function main(): Promise<void> {
   const config = loadConfig(args.configPath);
   const configPath = getConfigPath(args.configPath);
   const configHash = computeConfigHash(configPath);
+  logger.debug('Config loaded', { configPath, configHash });
 
   // Resolve provider
   const providerId = resolveProvider(
@@ -234,8 +248,10 @@ async function main(): Promise<void> {
     config.customProviders ?? {}
   );
   const provider = getProvider(providerId, config.customProviders ?? {});
+  logger.debug('Provider resolved', { providerId });
 
   if (!provider) {
+    logger.error('Provider not found', { providerId });
     const errorOutput = renderError('provider-unknown', 'without-cache');
     process.stdout.write(errorOutput);
     process.exit(1);
@@ -243,6 +259,10 @@ async function main(): Promise<void> {
 
   // Read cache
   const cachedEntry = readCache(baseUrl);
+  logger.debug('Cache read', {
+    cacheHit: !!cachedEntry,
+    cacheAge: cachedEntry ? `${Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 1000)}s` : 'N/A'
+  });
 
   // Derive timeout budgets
   const timeoutBudgetMs = isPiped
@@ -267,7 +287,16 @@ async function main(): Promise<void> {
   };
 
   // Execute cycle
+  logger.debug('Execution context prepared', { timeoutBudgetMs, fetchTimeoutMs });
   const result = await executeCycle(ctx);
+
+  const executionTime = Date.now() - startTime;
+  logger.debug('Execution completed', {
+    exitCode: result.exitCode,
+    executionTime: `${executionTime}ms`,
+    outputLength: result.output.length,
+    cacheUpdate: !!result.cacheUpdate
+  });
 
   // Apply side effects
   // In piped mode (Claude Code widget), apply host-specific formatting:
@@ -276,14 +305,18 @@ async function main(): Promise<void> {
   if (isPiped) {
     const formatted = '\x1b[0m' + result.output.replace(/ /g, '\u00A0');
     process.stdout.write(formatted);
+    logger.debug('Output formatted for piped mode (ANSI reset + NBSP)');
   } else {
     process.stdout.write(result.output);
+    logger.debug('Output written (TTY mode)');
   }
 
   if (result.cacheUpdate) {
     writeCache(baseUrl, result.cacheUpdate);
+    logger.debug('Cache updated');
   }
 
+  logger.debug('=== Execution finished ===', { exitCode: result.exitCode });
   process.exit(result.exitCode);
 }
 
