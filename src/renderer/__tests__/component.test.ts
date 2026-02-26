@@ -1,0 +1,437 @@
+/**
+ * Tests for per-component rendering
+ */
+
+import { describe, test, expect } from 'vitest';
+import { renderComponent } from '../component.js';
+import { stripAnsi } from '../colors.js';
+import type { NormalizedUsage, QuotaWindow, BalanceInfo, TokenStats, RateLimitWindow } from '../../types/normalized-usage.js';
+import { DEFAULT_CONFIG, type ComponentConfig } from '../../types/config.js';
+
+// Test data factory
+function createMockUsage(overrides?: Partial<NormalizedUsage>): NormalizedUsage {
+  return {
+    provider: 'test-provider',
+    billingMode: 'subscription',
+    planName: 'Test Plan',
+    fetchedAt: new Date().toISOString(),
+    resetSemantics: 'end-of-day',
+    daily: null,
+    weekly: null,
+    monthly: null,
+    balance: null,
+    resetsAt: null,
+    tokenStats: null,
+    rateLimit: null,
+    ...overrides,
+  };
+}
+
+function createQuotaWindow(used: number, limit: number | null, resetsAt?: string): QuotaWindow {
+  return {
+    used,
+    limit,
+    remaining: limit !== null ? Math.max(0, limit - used) : null,
+    resetsAt: resetsAt ?? new Date(Date.now() + 3600000).toISOString(),
+  };
+}
+
+describe('renderComponent - quota components', () => {
+  describe('standard layout + bar mode', () => {
+    test('renders daily component with bar', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(24, 100),
+      });
+      const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
+      expect(result).toBeTruthy();
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('Daily');
+      expect(plain).toContain('24%');
+    });
+
+    test('renders weekly component with bar', () => {
+      const data = createMockUsage({
+        weekly: createQuotaWindow(50, 200),
+      });
+      const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
+      expect(result).toBeTruthy();
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('Weekly');
+      expect(plain).toContain('25%');
+    });
+
+    test('renders monthly component with bar', () => {
+      const data = createMockUsage({
+        monthly: createQuotaWindow(800, 1000),
+      });
+      const result = renderComponent('monthly', data, {}, DEFAULT_CONFIG);
+      expect(result).toBeTruthy();
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('Monthly');
+      expect(plain).toContain('80%');
+    });
+  });
+
+  describe('compact layout', () => {
+    test('uses single letter labels', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = { layout: 'compact' };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toMatch(/^D /);
+    });
+  });
+
+  describe('minimal layout', () => {
+    test('hides labels', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = { layout: 'minimal' };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).not.toContain('Daily');
+      expect(plain).not.toContain('D');
+    });
+  });
+
+  describe('percent-first layout', () => {
+    test('shows percentage before bar', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = { layout: 'percent-first' };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      // Percentage should appear before bar characters
+      const percentIndex = plain.indexOf('50%');
+      const barIndex = plain.indexOf('━');
+      expect(percentIndex).toBeGreaterThan(-1);
+      expect(barIndex).toBeGreaterThan(percentIndex);
+    });
+  });
+
+  describe('display modes', () => {
+    test('bar mode renders progress bar', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = { displayMode: 'bar' };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('━'); // Bar character
+    });
+
+    test('percentage mode skips bar', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = { displayMode: 'percentage' };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).not.toContain('━');
+      expect(plain).toContain('50%');
+    });
+
+    test('icon-pct mode renders icon', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = { displayMode: 'icon-pct' };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      expect(result).toBeTruthy();
+      // Icon should be present (Unicode progress circle)
+      expect(result).toMatch(/[\u{F0130}-\u{F0AA5}]/u);
+    });
+  });
+
+  describe('null handling', () => {
+    test('returns null for missing daily data', () => {
+      const data = createMockUsage({ daily: null });
+      const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
+      expect(result).toBeNull();
+    });
+
+    test('handles null limit as 0% usage', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, null), // unlimited
+      });
+      const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('0%');
+    });
+  });
+
+  describe('countdown rendering', () => {
+    test('includes countdown by default', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100, new Date(Date.now() + 3600000).toISOString()),
+      });
+      const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      // Should contain countdown divider
+      expect(plain).toMatch(/·/);
+    });
+
+    test('hides countdown when disabled', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100, new Date(Date.now() + 3600000).toISOString()),
+      });
+      const config: ComponentConfig = { countdown: false };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).not.toMatch(/·/);
+    });
+  });
+});
+
+describe('renderComponent - balance', () => {
+  test('renders balance with currency', () => {
+    const balance: BalanceInfo = {
+      remaining: 42.5,
+      initial: 100,
+      unit: 'USD',
+    };
+    const data = createMockUsage({ balance });
+    const result = renderComponent('balance', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Balance');
+    expect(plain).toContain('$42.50');
+  });
+
+  test('renders unlimited balance as ∞', () => {
+    const balance: BalanceInfo = {
+      remaining: -1, // unlimited
+      initial: null,
+      unit: 'USD',
+    };
+    const data = createMockUsage({ balance });
+    const result = renderComponent('balance', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('∞');
+  });
+
+  test('skips bar for unlimited balance', () => {
+    const balance: BalanceInfo = {
+      remaining: -1,
+      initial: null,
+      unit: 'USD',
+    };
+    const data = createMockUsage({ balance });
+    const result = renderComponent('balance', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('━'); // No bar
+  });
+
+  test('returns null for missing balance', () => {
+    const data = createMockUsage({ balance: null });
+    const result = renderComponent('balance', data, {}, DEFAULT_CONFIG);
+    expect(result).toBeNull();
+  });
+});
+
+describe('renderComponent - tokens', () => {
+  test('renders token stats', () => {
+    const tokenStats: TokenStats = {
+      today: null,
+      total: {
+        requests: 1000,
+        inputTokens: 50000,
+        outputTokens: 25000,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalTokens: 75000,
+        cost: 10.5,
+      },
+      rpm: null,
+      tpm: null,
+    };
+    const data = createMockUsage({ tokenStats });
+    const result = renderComponent('tokens', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Tokens');
+    expect(plain).toContain('75.0K'); // Formatted with K suffix
+  });
+
+  test('formats large token counts', () => {
+    const tokenStats: TokenStats = {
+      today: null,
+      total: {
+        requests: 1000,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        totalTokens: 1500000, // 1.5M
+        cost: 0,
+      },
+      rpm: null,
+      tpm: null,
+    };
+    const data = createMockUsage({ tokenStats });
+    const result = renderComponent('tokens', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('1.5M');
+  });
+
+  test('returns null for missing token stats', () => {
+    const data = createMockUsage({ tokenStats: null });
+    const result = renderComponent('tokens', data, {}, DEFAULT_CONFIG);
+    expect(result).toBeNull();
+  });
+});
+
+describe('renderComponent - rateLimit', () => {
+  test('renders rate limit with usage', () => {
+    const rateLimit: RateLimitWindow = {
+      windowSeconds: 60,
+      requestsUsed: 45,
+      requestsLimit: 100,
+      costUsed: 0.5,
+      costLimit: 1.0,
+      remainingSeconds: 30,
+    };
+    const data = createMockUsage({ rateLimit });
+    const result = renderComponent('rateLimit', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Rate');
+    expect(plain).toContain('45/100');
+  });
+
+  test('returns null for missing rate limit', () => {
+    const data = createMockUsage({ rateLimit: null });
+    const result = renderComponent('rateLimit', data, {}, DEFAULT_CONFIG);
+    expect(result).toBeNull();
+  });
+});
+
+describe('renderComponent - plan', () => {
+  test('renders plan name', () => {
+    const data = createMockUsage({ planName: 'Pro Plan' });
+    const result = renderComponent('plan', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Pro Plan');
+  });
+
+  test('hides plan in minimal layout', () => {
+    const data = createMockUsage({ planName: 'Pro Plan' });
+    const config: ComponentConfig = { layout: 'minimal' };
+    const result = renderComponent('plan', data, config, DEFAULT_CONFIG);
+    expect(result).toBeNull();
+  });
+});
+
+describe('renderComponent - custom labels', () => {
+  test('uses custom string label', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const config: ComponentConfig = { label: 'Today' };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Today');
+    expect(plain).not.toContain('Daily');
+  });
+
+  test('uses custom object label', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const config: ComponentConfig = { label: { text: 'Today', icon: '📅' } };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Today');
+  });
+
+  test('hides label when label: false', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const config: ComponentConfig = { label: false };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('Daily');
+    expect(plain).not.toContain('D');
+  });
+});
+
+describe('renderComponent - per-part coloring', () => {
+  test('applies per-part colors', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const config: ComponentConfig = {
+      colors: {
+        label: '#8a8a8a',
+        bar: 'red',
+        value: 'white',
+        countdown: '#666666',
+      },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    expect(result).toBeTruthy();
+    // Should contain ANSI color codes
+    expect(result).toContain('\x1b[');
+  });
+
+  test('per-part colors override component color', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const config: ComponentConfig = {
+      color: 'auto', // Would normally resolve dynamically
+      colors: {
+        value: 'cyan', // Override with fixed color
+      },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    expect(result).toBeTruthy();
+    expect(result).toContain('\x1b[36m'); // Cyan ANSI code
+  });
+
+  test('per-part colors support alias resolution', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(90, 100), // 90% usage
+    });
+    const config: ComponentConfig = {
+      colors: {
+        bar: 'auto', // Should resolve to red at 90%
+      },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    expect(result).toBeTruthy();
+    // Should contain red ANSI code (high usage)
+    expect(result).toContain('\x1b[31m'); // Red ANSI code
+  });
+});
+
+describe('renderComponent - icon-pct label behavior', () => {
+  test('uses label.icon when displayMode is icon-pct', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const config: ComponentConfig = {
+      displayMode: 'icon-pct',
+      label: { text: 'Today', icon: '📅' },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('📅'); // Icon should be used
+    expect(plain).not.toContain('Today'); // Text should not be used
+  });
+
+  test('uses text label when icon not set in icon-pct mode', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const config: ComponentConfig = {
+      displayMode: 'icon-pct',
+      label: { text: 'Today' }, // No icon
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Today'); // Text label should be used
+  });
+});
