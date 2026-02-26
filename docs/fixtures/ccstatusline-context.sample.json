@@ -1,0 +1,25 @@
+{
+  "hook_event_name": "statusline",
+  "session_id": "sample-session-id",
+  "transcript_path": "/tmp/sample-transcript.jsonl",
+  "cwd": "/Users/liafo/Development/GitWorkspace/cc-api-statusline",
+  "model": {
+    "id": "claude-sonnet-4-5-20250929",
+    "display_name": "Claude Sonnet 4.5"
+  },
+  "workspace": {
+    "current_dir": "/Users/liafo/Development/GitWorkspace/cc-api-statusline",
+    "project_dir": "/Users/liafo/Development/GitWorkspace/cc-api-statusline"
+  },
+  "version": "1.0.0",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 0.1234,
+    "total_duration_ms": 456789,
+    "total_api_duration_ms": 123456,
+    "total_lines_added": 42,
+    "total_lines_removed": 7
+  }
+}

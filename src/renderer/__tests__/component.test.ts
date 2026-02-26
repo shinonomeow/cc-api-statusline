@@ -172,7 +172,7 @@ describe('renderComponent - quota components', () => {
       const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
       // Should contain countdown divider
-      expect(plain).toMatch(/·/);
+      expect(plain).toMatch(/ · /);
     });
 
     test('hides countdown when disabled', () => {
@@ -182,7 +182,7 @@ describe('renderComponent - quota components', () => {
       const config: ComponentConfig = { countdown: false };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
-      expect(plain).not.toMatch(/·/);
+      expect(plain).not.toMatch(/ · /);
     });
   });
 });

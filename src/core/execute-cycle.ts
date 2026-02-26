@@ -132,7 +132,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       const statusline = renderStatusline(cachedEntry.data, config, 'network-error', ageMinutes);
       return {
         output: statusline,
-        exitCode: 1,
+        exitCode: 0, // Changed from 1 - stale cache output is still useful
         cacheUpdate: null,
       };
     } else {

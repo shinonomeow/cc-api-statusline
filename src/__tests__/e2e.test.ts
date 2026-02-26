@@ -11,6 +11,7 @@ import type { CacheEntry, NormalizedUsage } from '../types/index.js';
 import { CACHE_VERSION } from '../types/index.js';
 import { shortHash } from '../services/hash.js';
 import { stripAnsi } from '../renderer/colors.js';
+import pkg from '../../package.json' with { type: 'json' };
 
 // Test directory
 const testDir = join(tmpdir(), `cc-api-e2e-test-${Date.now()}`);
@@ -82,7 +83,7 @@ describe('E2E - CLI Smoke Tests', () => {
   test('CLI runs with --version flag', () => {
     const result = runCli(['--version']);
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('0.1.0');
+    expect(result.stdout).toContain(pkg.version);
   });
 
   test('CLI handles missing env vars gracefully', () => {
@@ -141,7 +142,9 @@ describe('E2E - Cache Paths', () => {
     });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe(renderedLine);
+    // In piped mode (execFileSync runs without TTY), output includes ANSI reset prefix
+    // Sentinel has no spaces, so NBSP replacement doesn't apply
+    expect(result.stdout).toBe('\x1b[0m' + renderedLine);
     expect(result.elapsedMs).toBeLessThan(600);
   });
 

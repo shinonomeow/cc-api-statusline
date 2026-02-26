@@ -26,7 +26,7 @@ export function renderCountdown(
   }
 
   const format = config.format ?? 'auto';
-  const divider = config.divider ?? '·';
+  const divider = config.divider ?? ' · ';
   const prefix = config.prefix ?? '';
 
   const resetDate = new Date(resetsAt);

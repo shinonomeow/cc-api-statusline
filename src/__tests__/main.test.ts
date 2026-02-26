@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { spawn, execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import pkg from '../../package.json' with { type: 'json' };
 
 const execFile = promisify(execFileCb);
 
@@ -23,8 +26,8 @@ describe('main CLI', () => {
 
   it('should display version with --version flag', async () => {
     const result = await execFile('bun', ['run', mainPath, '--version']);
-    // Now outputs "cc-api-statusline v0.1.0"
-    expect(result.stdout.trim()).toContain('0.1.0');
+    // Outputs "cc-api-statusline v{version}" from package.json
+    expect(result.stdout.trim()).toContain(pkg.version);
   });
 
   it('should handle missing env vars gracefully', async () => {
@@ -175,5 +178,39 @@ describe('main CLI', () => {
         reject(new Error('Process did not exit within 2 seconds'));
       }, 2000);
     });
+  });
+
+  it('should handle --install flag', async () => {
+    const testEnvWithConfig = {
+      ...process.env,
+      CLAUDE_CONFIG_DIR: join(tmpdir(), `cc-install-test-${Date.now()}`),
+    };
+
+    const result = await execFile('bun', ['run', mainPath, '--install', '--runner', 'npx'], {
+      env: testEnvWithConfig,
+    });
+
+    expect(result.stdout).toContain('installed successfully');
+    expect(result.stdout).toContain('npx');
+  });
+
+  it('should handle --uninstall flag', async () => {
+    const testDir = join(tmpdir(), `cc-uninstall-test-${Date.now()}`);
+    const testEnvWithConfig = {
+      ...process.env,
+      CLAUDE_CONFIG_DIR: testDir,
+    };
+
+    // First install
+    await execFile('bun', ['run', mainPath, '--install', '--runner', 'npx'], {
+      env: testEnvWithConfig,
+    });
+
+    // Then uninstall
+    const result = await execFile('bun', ['run', mainPath, '--uninstall'], {
+      env: testEnvWithConfig,
+    });
+
+    expect(result.stdout).toContain('uninstalled successfully');
   });
 });

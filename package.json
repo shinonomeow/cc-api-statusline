@@ -7,8 +7,9 @@
     "cc-api-statusline": "dist/cc-api-statusline.js"
   },
   "scripts": {
+    "start": "bun run src/main.ts --once",
     "dev": "bun run src/main.ts",
-    "once": "bun run src/main.ts --once",
+    "example": "cat docs/fixtures/ccstatusline-context.sample.json | bun run src/main.ts",
     "test": "bun run build && vitest run",
     "test:watch": "vitest",
     "lint": "eslint src",
@@ -28,15 +29,15 @@
     "tui",
     "cli"
   ],
-  "author": "Anthropic",
+  "author": "Liafonx",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anthropics/cc-api-statusline.git"
+    "url": "https://github.com/liafonx/cc-api-statusline.git"
   },
-  "homepage": "https://github.com/anthropics/cc-api-statusline#readme",
+  "homepage": "https://github.com/liafonx/cc-api-statusline#readme",
   "bugs": {
-    "url": "https://github.com/anthropics/cc-api-statusline/issues"
+    "url": "https://github.com/liafonx/cc-api-statusline/issues"
   },
   "dependencies": {},
   "devDependencies": {

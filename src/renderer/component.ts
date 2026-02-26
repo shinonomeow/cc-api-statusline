@@ -457,7 +457,12 @@ function assembleComponent(
     if (countdown) parts.push(countdown);
   }
 
-  return parts.filter((p) => p).join(' ');
+  // Join parts with space, then handle countdown dividers
+  // If countdown starts with space (e.g., " · "), we get double space: "28% " + " · 2h54m"
+  // Remove one space to avoid "28%  · 2h54m" becoming "28% · 2h54m"
+  // The regex accounts for ANSI escape sequences that may appear between spaces
+  // eslint-disable-next-line no-control-regex
+  return parts.filter((p) => p).join(' ').replace(/ (\x1b\[[0-9;]*m)? ([·•])/g, '$1 $2');
 }
 
 /**

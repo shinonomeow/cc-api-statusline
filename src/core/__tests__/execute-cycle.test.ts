@@ -323,7 +323,7 @@ describe('executeCycle', () => {
 
       const result = await executeCycle(ctx);
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(0); // Changed from 1 - stale cache output is still useful
       expect(result.cacheUpdate).toBeNull();
       expect(mockFetch).toHaveBeenCalled();
     });
