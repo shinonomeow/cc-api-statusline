@@ -91,6 +91,118 @@ describe('E2E - CLI Smoke Tests', () => {
     expect(result.status).toBe(1);
     expect(result.stdout).toContain('⚠');
   });
+
+  test('handles spoofClaudeCodeUA config without crashing', () => {
+    const testBaseUrl = 'https://ua-test-bool.example.com';
+    const testToken = 'ua-test-token';
+    const testTokenHash = shortHash(testToken, 12);
+    const testConfigPath = join(configDir, 'test-ua-config.json');
+    const testConfig = JSON.stringify({
+      spoofClaudeCodeUA: true,
+      display: { layout: 'minimal' },
+      components: { daily: true },
+    });
+    writeFileSync(testConfigPath, testConfig);
+
+    // Create valid cache so CLI can return success
+    const mockData: NormalizedUsage = {
+      provider: 'sub2api',
+      billingMode: 'subscription',
+      planName: 'UA Test',
+      fetchedAt: new Date().toISOString(),
+      resetSemantics: 'end-of-day',
+      daily: { used: 10, limit: 100, remaining: 90, resetsAt: new Date(Date.now() + 3600000).toISOString() },
+      weekly: null,
+      monthly: null,
+      balance: null,
+      resetsAt: new Date(Date.now() + 3600000).toISOString(),
+      tokenStats: null,
+      rateLimit: null,
+    };
+
+    const cacheEntry: CacheEntry = {
+      version: CACHE_VERSION,
+      baseUrl: testBaseUrl,
+      tokenHash: testTokenHash,
+      provider: 'sub2api',
+      fetchedAt: mockData.fetchedAt,
+      ttlSeconds: 300,
+      data: mockData,
+      renderedLine: 'Daily ━━━━────── 10%',
+      configHash: shortHash(testConfig, 12),
+      errorState: null,
+    };
+
+    const cachePath = join(cacheDir, `cache-${shortHash(testBaseUrl, 12)}.json`);
+    writeFileSync(cachePath, JSON.stringify(cacheEntry, null, 2));
+
+    const result = runCli(['--once', '--config', testConfigPath], {
+      ...baseEnv({}),
+      ANTHROPIC_BASE_URL: testBaseUrl,
+      ANTHROPIC_AUTH_TOKEN: testToken,
+      CC_API_STATUSLINE_CACHE_DIR: cacheDir,
+    });
+
+    // Should not crash
+    expect(result.status).toBe(0);
+    expect(result.stdout.length).toBeGreaterThan(0);
+  });
+
+  test('handles custom User-Agent string', () => {
+    const testBaseUrl = 'https://ua-test-custom.example.com';
+    const testToken = 'ua-custom-token';
+    const testTokenHash = shortHash(testToken, 12);
+    const testConfigPath = join(configDir, 'test-custom-ua-config.json');
+    const testConfig = JSON.stringify({
+      spoofClaudeCodeUA: 'custom-client/1.0.0',
+      display: { layout: 'minimal' },
+      components: { daily: true },
+    });
+    writeFileSync(testConfigPath, testConfig);
+
+    // Create valid cache so CLI can return success
+    const mockData: NormalizedUsage = {
+      provider: 'sub2api',
+      billingMode: 'subscription',
+      planName: 'Custom UA Test',
+      fetchedAt: new Date().toISOString(),
+      resetSemantics: 'end-of-day',
+      daily: { used: 25, limit: 100, remaining: 75, resetsAt: new Date(Date.now() + 3600000).toISOString() },
+      weekly: null,
+      monthly: null,
+      balance: null,
+      resetsAt: new Date(Date.now() + 3600000).toISOString(),
+      tokenStats: null,
+      rateLimit: null,
+    };
+
+    const cacheEntry: CacheEntry = {
+      version: CACHE_VERSION,
+      baseUrl: testBaseUrl,
+      tokenHash: testTokenHash,
+      provider: 'sub2api',
+      fetchedAt: mockData.fetchedAt,
+      ttlSeconds: 300,
+      data: mockData,
+      renderedLine: 'Daily ━━━━────── 25%',
+      configHash: shortHash(testConfig, 12),
+      errorState: null,
+    };
+
+    const cachePath = join(cacheDir, `cache-${shortHash(testBaseUrl, 12)}.json`);
+    writeFileSync(cachePath, JSON.stringify(cacheEntry, null, 2));
+
+    const result = runCli(['--once', '--config', testConfigPath], {
+      ...baseEnv({}),
+      ANTHROPIC_BASE_URL: testBaseUrl,
+      ANTHROPIC_AUTH_TOKEN: testToken,
+      CC_API_STATUSLINE_CACHE_DIR: cacheDir,
+    });
+
+    // Should not crash
+    expect(result.status).toBe(0);
+    expect(result.stdout.length).toBeGreaterThan(0);
+  });
 });
 
 describe('E2E - Cache Paths', () => {
