@@ -4,7 +4,7 @@
  * Central registry of all provider adapters with unified interface
  */
 
-import type { NormalizedUsage } from '../types/index.js';
+import type { NormalizedUsage, Config } from '../types/index.js';
 import type { CustomProviderConfig } from '../types/index.js';
 import { fetchSub2api } from './sub2api.js';
 import { fetchClaudeRelayService } from './claude-relay-service.js';
@@ -22,10 +22,11 @@ export interface ProviderAdapter {
    *
    * @param baseUrl - ANTHROPIC_BASE_URL
    * @param token - ANTHROPIC_AUTH_TOKEN
+   * @param config - Application configuration
    * @param timeoutMs - Request timeout in milliseconds
    * @returns Normalized usage data
    */
-  fetch(baseUrl: string, token: string, timeoutMs: number): Promise<NormalizedUsage>;
+  fetch(baseUrl: string, token: string, config: Config, timeoutMs: number): Promise<NormalizedUsage>;
 }
 
 /**
@@ -60,8 +61,8 @@ export function getProvider(
   const customConfig = customProviders[providerId];
   if (customConfig) {
     return {
-      fetch: (baseUrl: string, token: string, timeoutMs: number) =>
-        fetchCustom(baseUrl, token, customConfig, timeoutMs),
+      fetch: (baseUrl: string, token: string, config: Config, timeoutMs: number) =>
+        fetchCustom(baseUrl, token, config, customConfig, timeoutMs),
     };
   }
 

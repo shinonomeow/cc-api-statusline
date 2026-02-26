@@ -107,7 +107,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
 
     logger.debug('Path C: Fetching from provider', { providerId, fetchTimeoutMs });
     const fetchStart = Date.now();
-    const data = await provider.fetch(baseUrl, authToken, fetchTimeoutMs);
+    const data = await provider.fetch(baseUrl, authToken, config, fetchTimeoutMs);
     const fetchTime = Date.now() - fetchStart;
     logger.debug('Fetch completed', { fetchTime: `${fetchTime}ms` });
 
