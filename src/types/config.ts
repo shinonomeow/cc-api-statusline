@@ -195,6 +195,7 @@ export interface CustomProviderConfig {
   requestBody?: Record<string, unknown> | null; // JSON body template
   urlPatterns: string[]; // URL substrings for autodetection
   responseMapping: CustomProviderResponseMapping;
+  spoofClaudeCodeUA?: boolean | string; // User-Agent spoofing: false/undefined = none, true = auto-detect, "string" = exact UA
 }
 
 /**
@@ -204,6 +205,7 @@ export interface Config {
   display: DisplayConfig;
   components: ComponentsConfig;
   colors?: ColorsConfig;
+  spoofClaudeCodeUA?: boolean | string; // User-Agent spoofing: false/undefined = none, true = auto-detect, "string" = exact UA
   customProviders?: Record<string, CustomProviderConfig>;
   pollIntervalSeconds?: number; // Default: 30, minimum: 5
   pipedRequestTimeoutMs?: number; // Default: 800, for piped mode fetch timeout
