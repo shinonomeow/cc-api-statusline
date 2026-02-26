@@ -4,7 +4,7 @@
  * Config-driven provider adapter with JSONPath response mapping
  */
 
-import type { NormalizedUsage, BillingMode } from '../types/index.js';
+import type { NormalizedUsage, BillingMode, Config } from '../types/index.js';
 import type { CustomProviderConfig } from '../types/index.js';
 import { createEmptyNormalizedUsage } from '../types/index.js';
 import { secureFetch } from './http.js';
@@ -99,35 +99,35 @@ function extractString(
 }
 
 /**
- * Validate custom provider config per spec-custom-providers.md
+ * Validate custom provider providerConfig per spec-custom-providers.md
  */
-export function validateCustomProvider(config: CustomProviderConfig): string | null {
-  if (!config.id) return 'Custom provider missing required field: id';
-  if (!config.endpoint) return 'Custom provider missing required field: endpoint';
-  if (!config.method) return 'Custom provider missing required field: method';
-  if (!config.auth) return 'Custom provider missing required field: auth';
-  if (!config.responseMapping) return 'Custom provider missing required field: responseMapping';
+export function validateCustomProvider(providerConfig: CustomProviderConfig): string | null {
+  if (!providerConfig.id) return 'Custom provider missing required field: id';
+  if (!providerConfig.endpoint) return 'Custom provider missing required field: endpoint';
+  if (!providerConfig.method) return 'Custom provider missing required field: method';
+  if (!providerConfig.auth) return 'Custom provider missing required field: auth';
+  if (!providerConfig.responseMapping) return 'Custom provider missing required field: responseMapping';
 
   // Endpoint must start with /
-  if (!config.endpoint.startsWith('/')) {
+  if (!providerConfig.endpoint.startsWith('/')) {
     return 'Custom provider endpoint must start with /';
   }
 
   // billingMode is required in responseMapping
-  if (!config.responseMapping.billingMode) {
+  if (!providerConfig.responseMapping.billingMode) {
     return 'Custom provider responseMapping must include billingMode';
   }
 
-  // Validate auth config
-  if (config.auth.type === 'header' && !config.auth.header) {
+  // Validate auth providerConfig
+  if (providerConfig.auth.type === 'header' && !providerConfig.auth.header) {
     return 'Custom provider auth.type="header" requires auth.header';
   }
-  if (config.auth.type === 'body' && !config.auth.bodyField) {
+  if (providerConfig.auth.type === 'body' && !providerConfig.auth.bodyField) {
     return 'Custom provider auth.type="body" requires auth.bodyField';
   }
 
   // urlPatterns is optional per spec, but should be array if provided
-  if (config.urlPatterns && !Array.isArray(config.urlPatterns)) {
+  if (providerConfig.urlPatterns && !Array.isArray(providerConfig.urlPatterns)) {
     return 'Custom provider urlPatterns must be an array';
   }
 
@@ -140,49 +140,50 @@ export function validateCustomProvider(config: CustomProviderConfig): string | n
 export async function fetchCustom(
   baseUrl: string,
   token: string,
-  config: CustomProviderConfig,
+  appConfig: Config,
+  providerConfig: CustomProviderConfig,
   timeoutMs: number = 5000
 ): Promise<NormalizedUsage> {
-  // Validate config
-  const validationError = validateCustomProvider(config);
+  // Validate providerConfig
+  const validationError = validateCustomProvider(providerConfig);
   if (validationError) {
-    throw new Error(`Invalid custom provider config: ${validationError}`);
+    throw new Error(`Invalid custom provider providerConfig: ${validationError}`);
   }
 
-  const url = `${baseUrl}${config.endpoint}`;
+  const url = `${baseUrl}${providerConfig.endpoint}`;
 
   // Build headers
   const headers: Record<string, string> = {
     'Accept': 'application/json',
   };
 
-  if (config.contentType) {
-    headers['Content-Type'] = config.contentType;
+  if (providerConfig.contentType) {
+    headers['Content-Type'] = providerConfig.contentType;
   }
 
   // Add auth header if type is header
-  if (config.auth.type === 'header' && config.auth.header) {
-    const prefix = config.auth.prefix ?? '';
-    headers[config.auth.header] = `${prefix}${token}`;
+  if (providerConfig.auth.type === 'header' && providerConfig.auth.header) {
+    const prefix = providerConfig.auth.prefix ?? '';
+    headers[providerConfig.auth.header] = `${prefix}${token}`;
   }
 
   // Build request body
   let body: string | undefined;
-  if (config.method === 'POST') {
-    if (config.auth.type === 'body' && config.auth.bodyField) {
+  if (providerConfig.method === 'POST') {
+    if (providerConfig.auth.type === 'body' && providerConfig.auth.bodyField) {
       // Merge auth into requestBody
-      const bodyObj = { ...config.requestBody };
-      bodyObj[config.auth.bodyField] = token;
+      const bodyObj = { ...providerConfig.requestBody };
+      bodyObj[providerConfig.auth.bodyField] = token;
       body = JSON.stringify(bodyObj);
-    } else if (config.requestBody) {
-      body = JSON.stringify(config.requestBody);
+    } else if (providerConfig.requestBody) {
+      body = JSON.stringify(providerConfig.requestBody);
     }
   }
 
   const responseText = await secureFetch(
     url,
     {
-      method: config.method,
+      method: providerConfig.method,
       headers,
       body,
     },
@@ -192,7 +193,7 @@ export async function fetchCustom(
   const responseData = JSON.parse(responseText) as Record<string, unknown>;
 
     // Extract values using responseMapping
-    const mapping = config.responseMapping;
+    const mapping = providerConfig.responseMapping;
 
     // Determine billing mode
     const billingModeStr = extractString(responseData, mapping.billingMode, 'subscription');
@@ -203,11 +204,11 @@ export async function fetchCustom(
     const planName = extractString(
       responseData,
       mapping.planName,
-      config.displayName ?? config.id
+      providerConfig.displayName ?? providerConfig.id
     );
 
     // Create base result
-    const result = createEmptyNormalizedUsage(config.id, billingMode, planName);
+    const result = createEmptyNormalizedUsage(providerConfig.id, billingMode, planName);
 
     // Set resetSemantics based on billing mode (can be overridden by mapping)
     result.resetSemantics = billingMode === 'balance' ? 'expiry' : 'end-of-day';

@@ -6,7 +6,7 @@
  * Billing mode: Always "subscription"-like (cost-limit based)
  */
 
-import type { NormalizedUsage, QuotaWindow } from '../types/index.js';
+import type { NormalizedUsage, QuotaWindow, Config } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
 
 /**
@@ -107,6 +107,7 @@ function createQuotaWindow(
 export async function fetchClaudeRelayService(
   baseUrl: string,
   token: string,
+  config: Config,
   timeoutMs: number = 5000
 ): Promise<NormalizedUsage> {
   const url = `${baseUrl}/apiStats/api/user-stats`;
