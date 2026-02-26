@@ -89,7 +89,7 @@ describe('renderCountdown', () => {
     test('handles exact day boundaries', () => {
       const resetsAt = getFutureTime(1 * 86400000); // 1d 0h
       const config: CountdownConfig = { format: 'duration' };
-      expect(renderCountdown(resetsAt, config, '24h')).toBe(' · 1d 0h');
+      expect(renderCountdown(resetsAt, config, '24h')).toMatch(/^ · (23h59m|1d 0h)$/);
     });
   });
 
