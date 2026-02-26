@@ -188,7 +188,7 @@ describe('executeCycle', () => {
       expect(result.cacheUpdate).not.toBeNull();
       expect(result.cacheUpdate?.provider).toBe('test-provider');
       expect(result.cacheUpdate?.configHash).toBe('config123');
-      expect(mockFetch).toHaveBeenCalledWith('https://api.example.com', 'test-token', 800);
+      expect(mockFetch).toHaveBeenCalledWith('https://api.example.com', 'test-token', baseConfig, 800);
     });
 
     it('should fetch and render when cache is stale', async () => {
