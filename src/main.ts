@@ -106,7 +106,7 @@ Config File:
   ~/.claude/cc-api-statusline/config.json
 
 Documentation:
-  https://github.com/anthropics/cc-api-statusline
+  https://github.com/liafonx/cc-api-statusline
   `.trim());
 }
 
