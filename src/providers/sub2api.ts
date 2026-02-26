@@ -6,9 +6,11 @@
  * Billing modes: subscription (has subscription object) or balance
  */
 
-import type { NormalizedUsage, PeriodTokens, QuotaWindow } from '../types/index.js';
+import type { NormalizedUsage, PeriodTokens, QuotaWindow, Config } from '../types/index.js';
 import { computeSoonestReset } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
+import { resolveUserAgent } from '../services/user-agent.js';
+import { logger } from '../services/logger.js';
 
 /**
  * sub2api API response shape (partial - only fields we use)
@@ -140,9 +142,16 @@ function createQuotaWindow(
 export async function fetchSub2api(
   baseUrl: string,
   token: string,
+  config: Config,
   timeoutMs: number = 5000
 ): Promise<NormalizedUsage> {
   const url = `${baseUrl}/v1/usage`;
+
+  // Resolve User-Agent
+  const resolvedUA = resolveUserAgent(config.spoofClaudeCodeUA);
+  if (resolvedUA) {
+    logger.debug(`Using User-Agent: ${resolvedUA}`);
+  }
 
   try {
     const responseText = await secureFetch(
@@ -154,7 +163,8 @@ export async function fetchSub2api(
           'Accept': 'application/json',
         },
       },
-      timeoutMs
+      timeoutMs,
+      resolvedUA
     );
 
     const data = JSON.parse(responseText) as Sub2apiResponse;
