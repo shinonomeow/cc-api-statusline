@@ -73,6 +73,28 @@ Optional:
 - `CLAUDE_CONFIG_DIR` (for `settings.json` overlay path)
 - `DEBUG` or `CC_STATUSLINE_DEBUG` (enable debug logging to `~/.claude/cc-api-statusline/debug.log`)
 
+## 2.5 User-Agent Configuration
+
+Optional User-Agent spoofing for API providers that restrict access to Claude Code clients.
+
+Config field: `spoofClaudeCodeUA?: boolean | string`
+
+Behavior:
+- `false` / `undefined`: No User-Agent header sent (default)
+- `true`: Auto-detect Claude Code version from `~/.claude/bin/claude --version`, fallback to `claude-cli/2.1.56 (external, cli)`
+- `"string"`: Use exact User-Agent string provided
+
+Per-provider override (custom providers only):
+- `CustomProviderConfig.spoofClaudeCodeUA` overrides global setting
+
+Detection logic:
+1. Check `CLAUDECODE=1` env var (only detect when running under Claude Code)
+2. Execute `~/.claude/bin/claude --version` with 1s timeout
+3. Parse version from output (regex: `/(\d+\.\d+\.\d+)/`)
+4. Fallback to hardcoded version if detection fails
+
+Implementation: `src/services/user-agent.ts`
+
 ### 2.4 settings.json overlay precedence
 
 `src/services/env.ts` behavior:

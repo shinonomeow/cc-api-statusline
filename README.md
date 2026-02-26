@@ -106,6 +106,34 @@ Add to your `~/.claude/ccstatusline/config.json`:
 
 Configuration file: `~/.claude/cc-api-statusline/config.json`
 
+### User-Agent Spoofing (Optional)
+
+Some API providers restrict requests to only come from Claude Code clients. Enable User-Agent spoofing to bypass these restrictions:
+
+```json
+{
+  "spoofClaudeCodeUA": true
+}
+```
+
+**Options:**
+- `false` / `undefined` — No User-Agent header (default)
+- `true` — Auto-detect Claude Code version, fallback to `claude-cli/2.1.56 (external, cli)`
+- `"string"` — Use custom User-Agent string
+
+**Per-provider override (custom providers only):**
+
+```json
+{
+  "spoofClaudeCodeUA": true,
+  "customProviders": {
+    "my-provider": {
+      "spoofClaudeCodeUA": "custom-client/1.0.0"
+    }
+  }
+}
+```
+
 ### Example Configuration
 
 ```json
