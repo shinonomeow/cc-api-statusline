@@ -33,11 +33,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/liafonx/cc-api-statusline.git"
+    "url": "git+https://github.com/${username}/${packageName}.git"
   },
-  "homepage": "https://github.com/liafonx/cc-api-statusline#readme",
+  "homepage": "https://github.com/${username}/${packageName}#readme",
   "bugs": {
-    "url": "https://github.com/liafonx/cc-api-statusline/issues"
+    "url": "https://github.com/${username}/${packageName}/issues"
   },
   "dependencies": {},
   "devDependencies": {
@@ -50,5 +50,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "provenance": true
   }
 }
