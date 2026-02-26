@@ -139,13 +139,15 @@ async function readBodyWithLimit(response: Response): Promise<string> {
  * @param url - Full URL to fetch
  * @param options - Fetch options (headers, method, body, etc.)
  * @param timeoutMs - Request timeout in milliseconds (default: 5000)
+ * @param userAgent - Optional User-Agent header value
  * @returns Response text
  * @throws HttpError, TimeoutError, RedirectError, ResponseTooLargeError
  */
 export async function secureFetch(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = 5000
+  timeoutMs: number = 5000,
+  userAgent?: string | null
 ): Promise<string> {
   // Security: Enforce HTTPS (with loopback exception)
   if (!isSecureUrl(url)) {
@@ -161,13 +163,24 @@ export async function secureFetch(
   // Add timeout via AbortSignal
   const signal = AbortSignal.timeout(timeoutMs);
 
+  // Build fetch options
+  const fetchOptions: RequestInit = {
+    ...options,
+    redirect: 'manual',
+    signal,
+  };
+
+  // Add User-Agent header if provided
+  if (userAgent) {
+    fetchOptions.headers = {
+      ...options.headers,
+      'User-Agent': userAgent,
+    };
+  }
+
   try {
     // Fetch with manual redirect handling
-    const response = await fetch(url, {
-      ...options,
-      redirect: 'manual',
-      signal,
-    });
+    const response = await fetch(url, fetchOptions);
 
     // Check for redirects
     if (response.status >= 300 && response.status < 400) {
