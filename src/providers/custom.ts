@@ -8,6 +8,8 @@ import type { NormalizedUsage, BillingMode, Config } from '../types/index.js';
 import type { CustomProviderConfig } from '../types/index.js';
 import { createEmptyNormalizedUsage } from '../types/index.js';
 import { secureFetch } from './http.js';
+import { resolveUserAgent } from '../services/user-agent.js';
+import { logger } from '../services/logger.js';
 
 /**
  * Simple JSONPath resolver
@@ -180,6 +182,16 @@ export async function fetchCustom(
     }
   }
 
+  // Resolve User-Agent with per-provider override
+  const providerUA = providerConfig.spoofClaudeCodeUA;
+  const globalUA = appConfig.spoofClaudeCodeUA;
+  const effectiveUA = providerUA !== undefined ? providerUA : globalUA;
+  const resolvedUA = resolveUserAgent(effectiveUA);
+
+  if (resolvedUA) {
+    logger.debug(`Using User-Agent for ${providerConfig.id}: ${resolvedUA}`);
+  }
+
   const responseText = await secureFetch(
     url,
     {
@@ -187,7 +199,8 @@ export async function fetchCustom(
       headers,
       body,
     },
-    timeoutMs
+    timeoutMs,
+    resolvedUA
   );
 
   const responseData = JSON.parse(responseText) as Record<string, unknown>;
