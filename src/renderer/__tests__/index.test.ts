@@ -276,6 +276,8 @@ describe('renderStatusline', () => {
           ...DEFAULT_CONFIG,
           display: {
             ...DEFAULT_CONFIG.display,
+            progressStyle: 'bar', // Use bar mode so each component is wide enough to require truncation
+            barStyle: 'classic',
             maxWidth: 40, // 40% of 50 = 20 chars - force hard truncation
             separator: ' | ',
           },
@@ -321,7 +323,7 @@ describe('renderStatusline', () => {
   });
 
   describe('layout variations', () => {
-    test('renders compact layout', () => {
+    test('renders compact displayMode', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
         weekly: createQuotaWindow(50, 200),
@@ -331,7 +333,7 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          layout: 'compact',
+          displayMode: 'compact',
         },
       };
 
@@ -343,7 +345,7 @@ describe('renderStatusline', () => {
       expect(plain).toMatch(/\bW\b/); // "W" for Weekly
     });
 
-    test('renders minimal layout', () => {
+    test('renders hidden displayMode (no labels)', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
       });
@@ -352,14 +354,14 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          layout: 'minimal',
+          displayMode: 'hidden',
         },
       };
 
       const result = renderStatusline(data, config);
       const plain = stripAnsi(result);
 
-      // Minimal has no labels
+      // Hidden displayMode shows no labels
       expect(plain).not.toContain('Daily');
       expect(plain).not.toContain('D');
       expect(plain).toContain('24%'); // Should have percentage
@@ -375,6 +377,8 @@ describe('renderStatusline', () => {
         display: {
           ...DEFAULT_CONFIG.display,
           layout: 'percent-first',
+          progressStyle: 'bar',
+          barStyle: 'classic', // Explicit classic style for ━ chars
         },
       };
 
@@ -393,8 +397,8 @@ describe('renderStatusline', () => {
     });
   });
 
-  describe('display mode variations', () => {
-    test('renders bar mode', () => {
+  describe('progress style variations', () => {
+    test('renders bar progressStyle (classic style)', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
       });
@@ -403,7 +407,8 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          displayMode: 'bar',
+          progressStyle: 'bar',
+          barStyle: 'classic', // Explicit classic style for ━ chars
         },
       };
 
@@ -413,7 +418,7 @@ describe('renderStatusline', () => {
       expect(plain).toContain('━'); // Bar character
     });
 
-    test('renders percentage mode', () => {
+    test('renders bar progressStyle (block style, default)', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
       });
@@ -422,7 +427,27 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          displayMode: 'percentage',
+          progressStyle: 'bar',
+          barStyle: 'block',
+        },
+      };
+
+      const result = renderStatusline(data, config);
+      const plain = stripAnsi(result);
+
+      expect(plain).toContain('█'); // Block bar character
+    });
+
+    test('renders hidden progressStyle (no progress bar)', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(24, 100),
+      });
+
+      const config: Config = {
+        ...DEFAULT_CONFIG,
+        display: {
+          ...DEFAULT_CONFIG.display,
+          progressStyle: 'hidden',
         },
       };
 
@@ -433,7 +458,7 @@ describe('renderStatusline', () => {
       expect(plain).toContain('24%');
     });
 
-    test('renders icon-pct mode', () => {
+    test('renders icon progressStyle', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
       });
@@ -442,7 +467,7 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          displayMode: 'icon-pct',
+          progressStyle: 'icon',
         },
       };
 
@@ -508,7 +533,7 @@ describe('renderStatusline', () => {
   });
 
   describe('per-component overrides', () => {
-    test('applies per-component display mode', () => {
+    test('applies per-component progressStyle', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
         weekly: createQuotaWindow(50, 200),
@@ -518,26 +543,25 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          displayMode: 'bar', // Global default
+          progressStyle: 'bar', // Global default
         },
         components: {
-          daily: true, // Use global bar mode
-          weekly: { displayMode: 'percentage' }, // Override to percentage
+          daily: true, // Use global bar progressStyle
+          weekly: { progressStyle: 'hidden' }, // Override to no progress indicator
         },
       };
 
       const result = renderStatusline(data, config);
       const plain = stripAnsi(result);
 
-      // Daily should have bar, weekly should not
+      // Both should show their components with values
       expect(plain).toContain('Daily');
       expect(plain).toContain('Weekly');
-      // Both should have percentages
       expect(plain).toContain('24%');
       expect(plain).toContain('25%');
     });
 
-    test('applies per-component layout', () => {
+    test('applies per-component displayMode', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
         weekly: createQuotaWindow(50, 200),
@@ -547,11 +571,11 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          layout: 'standard', // Global default
+          displayMode: 'text', // Global default
         },
         components: {
-          daily: true, // Use global standard layout
-          weekly: { layout: 'compact' }, // Override to compact
+          daily: true, // Use global text displayMode
+          weekly: { displayMode: 'compact' }, // Override to compact label
         },
       };
 

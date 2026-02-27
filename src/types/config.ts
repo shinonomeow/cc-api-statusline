@@ -5,14 +5,29 @@
  */
 
 /**
- * Layout modes control label/bar/value arrangement
+ * Layout modes control assembly order of parts
+ * standard:      label + progress + value + countdown
+ * percent-first: label + value + progress + countdown
  */
-export type Layout = 'standard' | 'compact' | 'minimal' | 'percent-first';
+export type Layout = 'standard' | 'percent-first';
 
 /**
- * Display modes control how usage fraction is visualized
+ * Display modes control label rendering style
+ * text    = full text labels ("Daily", "Weekly")
+ * compact = single-char labels ("D", "W")
+ * emoji   = emoji labels ("📅", "📆")
+ * nerd    = nerd font icon labels (falls back to text without nerd fonts)
+ * hidden  = no labels
  */
-export type DisplayMode = 'bar' | 'percentage' | 'icon-pct';
+export type DisplayMode = 'text' | 'compact' | 'emoji' | 'nerd' | 'hidden';
+
+/**
+ * Progress styles control how the usage fraction is visualized
+ * bar    = progress bar characters
+ * icon   = nerd font progress circle (falls back to bar without nerd fonts)
+ * hidden = no progress indicator
+ */
+export type ProgressStyle = 'bar' | 'icon' | 'hidden';
 
 /**
  * Bar sizes (width in characters)
@@ -39,6 +54,20 @@ export type BarStyle =
 export type ClockFormat = '12h' | '24h';
 
 /**
+ * Color rendering mode for terminal output
+ */
+export type ColorMode = '16' | '256' | 'truecolor' | 'auto';
+
+/**
+ * Divider configuration between components
+ */
+export interface DividerConfig {
+  text?: string;    // Divider text, default '|'
+  padding?: number; // Spaces on each side, default 1
+  color?: string;   // Optional color name/hex
+}
+
+/**
  * Countdown display format
  */
 export type CountdownFormat = 'auto' | 'duration' | 'time';
@@ -57,8 +86,9 @@ export interface CountdownConfig {
  * Label configuration
  */
 export interface LabelConfig {
-  text?: string; // Custom text label
-  icon?: string; // Icon for icon-pct mode
+  text?: string; // Custom text for 'text'/'compact' modes
+  emoji?: string; // Custom emoji for 'emoji' mode
+  nerd?: string; // Custom nerd icon for 'nerd' mode
 }
 
 /**
@@ -93,8 +123,9 @@ export interface ColorsConfig {
  * Component-specific configuration
  */
 export interface ComponentConfig {
-  layout?: Layout; // Override global layout
-  displayMode?: DisplayMode; // Override global displayMode
+  layout?: Layout; // Override global layout (assembly order)
+  displayMode?: DisplayMode; // Override global displayMode (label style)
+  progressStyle?: ProgressStyle; // Override global progressStyle (progress indicator)
   barSize?: BarSize; // Override global barSize
   barStyle?: BarStyle; // Override global barStyle
   color?: string; // Shorthand color for all parts (or alias name)
@@ -114,19 +145,23 @@ export interface ComponentsConfig {
   tokens?: boolean | ComponentConfig;
   rateLimit?: boolean | ComponentConfig;
   plan?: boolean | ComponentConfig;
+  divider?: boolean | DividerConfig; // Separator between components; true = use display.separator default
 }
 
 /**
  * Global display configuration
  */
 export interface DisplayConfig {
-  layout: Layout; // Default: standard
-  displayMode: DisplayMode; // Default: bar
+  layout: Layout; // Assembly order: standard | percent-first
+  displayMode: DisplayMode; // Label style: text | compact | emoji | nerd | hidden
+  progressStyle: ProgressStyle; // Progress indicator: bar | icon | hidden
   barSize: BarSize; // Default: medium
-  barStyle: BarStyle; // Default: classic
+  barStyle: BarStyle; // Default: block
   separator: string; // Between components, default: " | "
-  maxWidth: number; // % of terminal width, 20-100, default: 80
+  maxWidth: number; // % of terminal width, 20-100, default: 100
   clockFormat: ClockFormat; // 12h or 24h, default: 24h
+  colorMode?: ColorMode; // Color rendering mode, default: 'auto'
+  nerdFont?: 'auto' | boolean; // Nerd font availability, default: 'auto'
 }
 
 /**
@@ -217,12 +252,15 @@ export interface Config {
 export const DEFAULT_CONFIG: Config = {
   display: {
     layout: 'standard',
-    displayMode: 'bar',
+    displayMode: 'text',
+    progressStyle: 'icon',
     barSize: 'medium',
-    barStyle: 'classic',
+    barStyle: 'block',
     separator: ' | ',
     maxWidth: 100,
     clockFormat: '24h',
+    colorMode: 'auto',
+    nerdFont: 'auto',
   },
   components: {
     daily: true,
@@ -232,6 +270,7 @@ export const DEFAULT_CONFIG: Config = {
     tokens: false,
     rateLimit: false,
     plan: false,
+    divider: true,
   },
   colors: {
     auto: {
@@ -303,6 +342,33 @@ export const COMPONENT_FULL_LABELS: Record<string, string> = {
   tokens: 'Tokens',
   rateLimit: 'Rate',
   plan: 'Plan',
+};
+
+/**
+ * Component emoji labels for emoji display mode
+ */
+export const COMPONENT_EMOJI_LABELS: Record<string, string> = {
+  daily: '📅',
+  weekly: '📆',
+  monthly: '🗓️',
+  balance: '💰',
+  tokens: '🔢',
+  rateLimit: '⚡',
+  plan: '📋',
+};
+
+/**
+ * Component nerd font icon labels for nerd display mode
+ * Uses Font Awesome icons available in most nerd font distributions
+ */
+export const COMPONENT_NERD_LABELS: Record<string, string> = {
+  daily: '\u{F073}', // nf-fa-calendar
+  weekly: '\u{F274}', // nf-fa-calendar_check_o
+  monthly: '\u{F133}', // nf-fa-calendar_o
+  balance: '\u{F155}', // nf-fa-dollar
+  tokens: '\u{F0B1}', // nf-fa-briefcase
+  rateLimit: '\u{F0E7}', // nf-fa-bolt
+  plan: '\u{F0AE}', // nf-fa-tasks
 };
 
 /**

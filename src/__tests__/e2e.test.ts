@@ -99,7 +99,7 @@ describe('E2E - CLI Smoke Tests', () => {
     const testConfigPath = join(configDir, 'test-ua-config.json');
     const testConfig = JSON.stringify({
       spoofClaudeCodeUA: true,
-      display: { layout: 'minimal' },
+      display: { displayMode: 'hidden' },
       components: { daily: true },
     });
     writeFileSync(testConfigPath, testConfig);
@@ -155,7 +155,7 @@ describe('E2E - CLI Smoke Tests', () => {
     const testConfigPath = join(configDir, 'test-custom-ua-config.json');
     const testConfig = JSON.stringify({
       spoofClaudeCodeUA: 'custom-client/1.0.0',
-      display: { layout: 'minimal' },
+      display: { displayMode: 'hidden' },
       components: { daily: true },
     });
     writeFileSync(testConfigPath, testConfig);

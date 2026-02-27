@@ -17,6 +17,7 @@ import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
 import {
   computeNextMidnightLocal,
   computeNextMondayLocal,
+  computeFirstOfNextMonthLocal,
 } from '../services/time.js';
 
 /**
@@ -33,6 +34,8 @@ interface RelayResponse {
       weeklyOpusCostLimit?: number;
       weeklyResetDay?: number;
       weeklyResetHour?: number;
+      currentTotalCost?: number;    // Overall billing period used (maps to monthly)
+      totalCostLimit?: number;      // Overall billing period limit (maps to monthly)
       rateLimitWindow?: number; // minutes
       currentWindowRequests?: number;
       rateLimitRequests?: number;
@@ -141,23 +144,32 @@ export async function fetchClaudeRelayService(
       computeNextMidnightLocal()
     );
 
-    // Build weekly quota (Opus-only cost)
+    // Build weekly quota (Opus-only cost) with qualifier label
     const weeklyResetsAt =
       limits.weeklyResetDay !== undefined && limits.weeklyResetHour !== undefined
         ? computeWeeklyResetTime(limits.weeklyResetDay, limits.weeklyResetHour)
         : computeNextMondayLocal();
 
-    const weekly = createQuotaWindow(
+    const weeklyBase = createQuotaWindow(
       limits.weeklyOpusCost,
       limits.weeklyOpusCostLimit,
       weeklyResetsAt
+    );
+    // Add 'Opus' qualifier so the renderer shows "Weekly (Opus)" / "W(O)"
+    const weekly = weeklyBase ? { ...weeklyBase, qualifier: 'Opus' } : null;
+
+    // Build monthly quota from total/overall billing period cost
+    const monthly = createQuotaWindow(
+      limits.currentTotalCost,
+      limits.totalCostLimit,
+      computeFirstOfNextMonthLocal()
     );
 
     // resetsAt: use windowEndTime if available, otherwise compute from quota windows
     const resetsAt = limits.windowEndTime
       ? new Date(limits.windowEndTime).toISOString()
       : (() => {
-          const tempResult = { ...base, daily, weekly, monthly: null };
+          const tempResult = { ...base, daily, weekly, monthly };
           return computeSoonestReset(tempResult);
         })();
 
@@ -203,7 +215,7 @@ export async function fetchClaudeRelayService(
       resetSemantics: 'rolling-window',
       daily,
       weekly,
-      monthly: null,
+      monthly,
       resetsAt,
       tokenStats,
       rateLimit,

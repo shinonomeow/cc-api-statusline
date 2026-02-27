@@ -8,6 +8,7 @@
  */
 
 import type { Config, ColorAliasEntry } from '../types/config.js';
+import type { TerminalCapabilities } from '../services/capabilities.js';
 
 /**
  * Standard ANSI color codes (foreground)
@@ -46,22 +47,45 @@ const ANSI_RESET = '\x1b[0m';
 const ANSI_DIM = '\x1b[2m';
 
 /**
- * Apply ANSI color to text
+ * Apply ANSI color to text using the specified color mode
  *
  * @param text - Text to colorize
  * @param color - Named ANSI color, hex (#rgb or #rrggbb), or null (no-op)
+ * @param capabilities - Optional terminal capabilities (for color mode selection)
  * @returns Colorized text with ANSI codes
  */
-export function ansiColor(text: string, color: string | null | undefined): string {
+export function ansiColor(
+  text: string,
+  color: string | null | undefined,
+  capabilities?: Pick<TerminalCapabilities, 'colorMode'>
+): string {
   if (!color) return text;
 
-  // Named ANSI color
+  // Named ANSI color (always 16-color codes — works in all modes)
   if (ANSI_COLORS[color.toLowerCase()]) {
     return `${ANSI_COLORS[color.toLowerCase()]}${text}${ANSI_RESET}`;
   }
 
-  // Hex color
+  // Hex color — render based on color mode
   if (color.startsWith('#')) {
+    const colorMode = capabilities?.colorMode ?? 'truecolor';
+
+    if (colorMode === '16') {
+      // 16-color mode: convert to nearest named ANSI color
+      const named = hexToNearestNamedAnsi(color);
+      return named ? `${named}${text}${ANSI_RESET}` : text;
+    }
+
+    if (colorMode === '256') {
+      // 256-color mode: use color cube index
+      const index = hexTo256(color);
+      if (index !== null) {
+        return `\x1b[38;5;${index}m${text}${ANSI_RESET}`;
+      }
+      return text;
+    }
+
+    // truecolor (default)
     const rgb = hexToRgb(color);
     if (rgb) {
       return `\x1b[38;2;${rgb.r};${rgb.g};${rgb.b}m${text}${ANSI_RESET}`;
@@ -70,6 +94,63 @@ export function ansiColor(text: string, color: string | null | undefined): strin
 
   // Unknown color — treat as no-op
   return text;
+}
+
+/**
+ * Convert hex color to 256-color index (color cube, indices 16-231)
+ *
+ * @param hex - Hex color string (#rgb or #rrggbb)
+ * @returns 256-color index or null if invalid
+ */
+export function hexTo256(hex: string): number | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  // Standard 6x6x6 color cube (indices 16-231)
+  const r6 = Math.round((rgb.r / 255) * 5);
+  const g6 = Math.round((rgb.g / 255) * 5);
+  const b6 = Math.round((rgb.b / 255) * 5);
+  return 16 + 36 * r6 + 6 * g6 + b6;
+}
+
+/**
+ * Map of basic ANSI named colors to approximate RGB values (for fallback)
+ */
+const ANSI_COLOR_RGB: Array<{ name: string; r: number; g: number; b: number }> = [
+  { name: 'black', r: 0, g: 0, b: 0 },
+  { name: 'red', r: 170, g: 0, b: 0 },
+  { name: 'green', r: 0, g: 170, b: 0 },
+  { name: 'yellow', r: 170, g: 170, b: 0 },
+  { name: 'blue', r: 0, g: 0, b: 170 },
+  { name: 'magenta', r: 170, g: 0, b: 170 },
+  { name: 'cyan', r: 0, g: 170, b: 170 },
+  { name: 'white', r: 170, g: 170, b: 170 },
+];
+
+/**
+ * Convert hex color to nearest named ANSI color (for 16-color fallback)
+ *
+ * @param hex - Hex color string
+ * @returns ANSI escape code for nearest named color, or null
+ */
+function hexToNearestNamedAnsi(hex: string): string | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+
+  let minDist = Infinity;
+  let nearest = 'white';
+
+  for (const entry of ANSI_COLOR_RGB) {
+    const dr = rgb.r - entry.r;
+    const dg = rgb.g - entry.g;
+    const db = rgb.b - entry.b;
+    const dist = dr * dr + dg * dg + db * db;
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = entry.name;
+    }
+  }
+
+  return ANSI_COLORS[nearest] ?? null;
 }
 
 /**
