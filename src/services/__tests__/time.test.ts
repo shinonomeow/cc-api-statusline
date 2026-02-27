@@ -6,7 +6,6 @@ import { describe, it, expect } from 'vitest';
 import {
   computeNextMidnightLocal,
   computeNextMondayLocal,
-  computeFirstOfNextMonthLocal,
 } from '../time.js';
 
 describe('time helpers', () => {
@@ -104,54 +103,4 @@ describe('time helpers', () => {
     });
   });
 
-  describe('computeFirstOfNextMonthLocal', () => {
-    it('returns valid ISO-8601 timestamp', () => {
-      const result = computeFirstOfNextMonthLocal();
-      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      expect(() => new Date(result)).not.toThrow();
-    });
-
-    it('returns first day of next month at 00:00:00', () => {
-      const result = computeFirstOfNextMonthLocal();
-      const parsed = new Date(result);
-
-      // Should be in the future
-      expect(parsed.getTime()).toBeGreaterThan(Date.now());
-
-      // Should be the 1st
-      expect(parsed.getDate()).toBe(1);
-
-      // Should be at midnight
-      expect(parsed.getHours()).toBe(0);
-      expect(parsed.getMinutes()).toBe(0);
-      expect(parsed.getSeconds()).toBe(0);
-      expect(parsed.getMilliseconds()).toBe(0);
-    });
-
-    it('correctly handles year rollover', () => {
-      const result = computeFirstOfNextMonthLocal();
-      const parsed = new Date(result);
-      const now = new Date();
-
-      // If we're in December, next month should be January of next year
-      if (now.getMonth() === 11) {
-        expect(parsed.getMonth()).toBe(0); // January
-        expect(parsed.getFullYear()).toBe(now.getFullYear() + 1);
-      } else {
-        expect(parsed.getMonth()).toBe(now.getMonth() + 1);
-        expect(parsed.getFullYear()).toBe(now.getFullYear());
-      }
-    });
-
-    it('is within 32 days from now', () => {
-      const result = computeFirstOfNextMonthLocal();
-      const parsed = new Date(result);
-      const now = new Date();
-      const diff = parsed.getTime() - now.getTime();
-
-      // Should be less than 32 days (accounting for longest month)
-      expect(diff).toBeLessThan(32 * 24 * 60 * 60 * 1000);
-      expect(diff).toBeGreaterThan(0);
-    });
-  });
 });

@@ -24,6 +24,7 @@ import { renderBar } from './bar.js';
 import { renderCountdown } from './countdown.js';
 import { ansiColor, resolveColor } from './colors.js';
 import { getProgressIcon } from './icons.js';
+import { formatCompactNumber, formatCurrencyQuota } from './format.js';
 
 /**
  * Component ID type
@@ -167,9 +168,10 @@ function renderQuotaComponent(
   // Render value (percentage)
   const value = ansiColor(`${Math.round(usagePercent)}%`, valueColor);
 
-  // Render countdown
-  const countdown = renderCountdownSubComponent(
+  // Render secondary display (countdown or cost fallback)
+  const countdown = renderSecondaryDisplay(
     quota.resetsAt,
+    quota,
     componentConfig.countdown,
     countdownColor,
     clockFormat
@@ -256,7 +258,7 @@ function renderTokensComponent(
 
   // Format token count (use totalTokens or sum input+output)
   const tokenCount = stats.totalTokens ?? stats.inputTokens + stats.outputTokens;
-  const valueText = formatLargeNumber(tokenCount);
+  const valueText = formatCompactNumber(tokenCount);
   const value = ansiColor(valueText, valueColor);
 
   // No display mode or countdown for tokens
@@ -404,23 +406,44 @@ function renderDisplayMode(
 }
 
 /**
- * Render countdown sub-component
+ * Render secondary display (countdown or cost fallback)
+ * Fallback chain:
+ * 1. If countdownConfig is false → return ''
+ * 2. If resetsAt is non-null → show time countdown
+ * 3. If quota has limit → show cost fallback ($used/$limit)
+ * 4. Otherwise → return ''
  */
-function renderCountdownSubComponent(
+function renderSecondaryDisplay(
   resetsAt: string | null,
+  quota: QuotaWindow,
   countdownConfig: boolean | CountdownConfig | undefined,
   countdownColor: string | null,
   clockFormat: ClockFormat
 ): string {
-  // Countdown disabled or no config
-  if (countdownConfig === false || !resetsAt) return '';
+  // Countdown/secondary display disabled
+  if (countdownConfig === false) return '';
 
   // Default countdown config
   const config: CountdownConfig =
     typeof countdownConfig === 'object' ? countdownConfig : {};
 
-  const countdown = renderCountdown(resetsAt, config, clockFormat);
-  return countdownColor ? ansiColor(countdown, countdownColor) : countdown;
+  // Priority 1: Real reset time available → show time countdown
+  if (resetsAt !== null) {
+    const countdown = renderCountdown(resetsAt, config, clockFormat);
+    return countdownColor ? ansiColor(countdown, countdownColor) : countdown;
+  }
+
+  // Priority 2: No reset time, but cost quota available → show cost
+  if (quota.limit !== null) {
+    const divider = config.divider ?? ' · ';
+    const prefix = config.prefix ?? '';
+    const costDisplay = formatCurrencyQuota(quota.used, quota.limit);
+    const display = `${prefix}${divider}${costDisplay}`;
+    return countdownColor ? ansiColor(display, countdownColor) : display;
+  }
+
+  // Priority 3: Nothing available → hide
+  return '';
 }
 
 /**
@@ -494,16 +517,3 @@ function resolvePartColor(
   return resolveColor(color, usagePercent, globalConfig);
 }
 
-/**
- * Format large numbers with K/M/B suffixes
- */
-function formatLargeNumber(n: number): string {
-  if (n >= 1_000_000_000) {
-    return `${(n / 1_000_000_000).toFixed(1)}B`;
-  } else if (n >= 1_000_000) {
-    return `${(n / 1_000_000).toFixed(1)}M`;
-  } else if (n >= 1_000) {
-    return `${(n / 1_000).toFixed(1)}K`;
-  }
-  return n.toString();
-}

@@ -38,16 +38,3 @@ export function computeNextMondayLocal(): string {
   return nextMonday.toISOString();
 }
 
-/**
- * Compute first of next month 00:00 in local timezone
- */
-export function computeFirstOfNextMonthLocal(): string {
-  const now = new Date();
-  const nextMonth = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    1,
-    0, 0, 0, 0
-  );
-  return nextMonth.toISOString();
-}

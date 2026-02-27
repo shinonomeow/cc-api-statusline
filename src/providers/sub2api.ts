@@ -13,11 +13,7 @@ import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
 import { createQuotaWindow } from './quota-window.js';
 import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
-import {
-  computeNextMidnightLocal,
-  computeNextMondayLocal,
-  computeFirstOfNextMonthLocal,
-} from '../services/time.js';
+import { computeNextMidnightLocal } from '../services/time.js';
 
 /**
  * sub2api API response shape (partial - only fields we use)
@@ -143,13 +139,13 @@ export async function fetchSub2api(
       weekly = createQuotaWindow(
         sub.weekly_usage_usd,
         sub.weekly_limit_usd,
-        computeNextMondayLocal()
+        null
       );
 
       monthly = createQuotaWindow(
         sub.monthly_usage_usd,
         sub.monthly_limit_usd,
-        computeFirstOfNextMonthLocal()
+        null
       );
 
       // Compute soonest reset from built windows

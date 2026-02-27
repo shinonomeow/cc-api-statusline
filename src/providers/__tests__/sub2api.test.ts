@@ -21,7 +21,7 @@ describe('sub2api provider', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     const httpModule = await import('../http.js');
-    mockFetch = vi.mocked(httpModule.secureFetch) as unknown as ReturnType<typeof vi.fn>;
+    mockFetch = (httpModule.secureFetch as unknown) as ReturnType<typeof vi.fn>;
   });
 
   const mockResponse = {
@@ -154,6 +154,72 @@ describe('sub2api provider', () => {
         }),
         5000,
         null
+      );
+    });
+  });
+
+  describe('resetsAt behavior', () => {
+    it('daily resetsAt is computed midnight', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.daily).not.toBeNull();
+      expect(result.daily!.resetsAt).not.toBeNull();
+      // Should be a valid ISO string for tomorrow at midnight
+      const resetTime = new Date(result.daily!.resetsAt!);
+      expect(resetTime.getHours()).toBe(0);
+      expect(resetTime.getMinutes()).toBe(0);
+      expect(resetTime.getSeconds()).toBe(0);
+    });
+
+    it('weekly resetsAt is null (no computed reset time)', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.weekly).not.toBeNull();
+      expect(result.weekly!.resetsAt).toBeNull();
+    });
+
+    it('monthly resetsAt is null (no computed reset time)', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.monthly).not.toBeNull();
+      expect(result.monthly!.resetsAt).toBeNull();
+    });
+  });
+
+  describe('quota window values', () => {
+    it('normalizes USD amounts to correct scale', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.daily).toEqual(
+        expect.objectContaining({
+          used: 5,
+          limit: 10,
+          remaining: 5,
+        })
+      );
+
+      expect(result.weekly).toEqual(
+        expect.objectContaining({
+          used: 20,
+          limit: 50,
+          remaining: 30,
+        })
+      );
+
+      expect(result.monthly).toEqual(
+        expect.objectContaining({
+          used: 50,
+          limit: 200,
+          remaining: 150,
+        })
       );
     });
   });

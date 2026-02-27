@@ -186,6 +186,74 @@ describe('renderComponent - quota components', () => {
       expect(plain).not.toMatch(/ · /);
     });
   });
+
+  describe('cost fallback (when resetsAt is null)', () => {
+    test('shows cost fallback when resetsAt is null but limit is available', () => {
+      const data = createMockUsage({
+        weekly: {
+          used: 156,
+          limit: 275,
+          remaining: 119,
+          resetsAt: null, // No reset time (sub2api weekly/monthly)
+        },
+      });
+      const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      // Should show cost instead of time countdown
+      expect(plain).toContain('$156/$275');
+      expect(plain).toContain(' · '); // Still uses divider
+    });
+
+    test('time countdown takes priority over cost fallback', () => {
+      const resetsAt = new Date(Date.now() + 3600000).toISOString();
+      const data = createMockUsage({
+        weekly: {
+          used: 156,
+          limit: 275,
+          remaining: 119,
+          resetsAt, // Has reset time
+        },
+      });
+      const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      // Should show time countdown, not cost
+      expect(plain).not.toContain('$156/$275');
+      expect(plain).toMatch(/ · /); // Has divider
+    });
+
+    test('hides secondary display when countdown disabled (even with cost data)', () => {
+      const data = createMockUsage({
+        weekly: {
+          used: 156,
+          limit: 275,
+          remaining: 119,
+          resetsAt: null,
+        },
+      });
+      const config: ComponentConfig = { countdown: false };
+      const result = renderComponent('weekly', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      // Should not show cost or divider
+      expect(plain).not.toContain('$156/$275');
+      expect(plain).not.toMatch(/ · /);
+    });
+
+    test('returns empty string for secondary display when both resetsAt and limit are null', () => {
+      const data = createMockUsage({
+        monthly: {
+          used: 500,
+          limit: null, // No limit
+          remaining: null,
+          resetsAt: null, // No reset time
+        },
+      });
+      const result = renderComponent('monthly', data, {}, DEFAULT_CONFIG);
+      // Component should still render (has data), but no secondary display
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('Monthly');
+      expect(plain).not.toMatch(/ · /);
+    });
+  });
 });
 
 describe('renderComponent - balance', () => {
@@ -253,7 +321,7 @@ describe('renderComponent - tokens', () => {
     const result = renderComponent('tokens', data, {}, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).toContain('Tokens');
-    expect(plain).toContain('75.0K'); // Formatted with K suffix
+    expect(plain).toContain('75K'); // Formatted with K suffix (no decimal for >= 10K)
   });
 
   test('formats large token counts', () => {
