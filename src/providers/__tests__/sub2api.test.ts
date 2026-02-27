@@ -165,9 +165,11 @@ describe('sub2api provider', () => {
       const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
 
       expect(result.daily).not.toBeNull();
-      expect(result.daily!.resetsAt).not.toBeNull();
+      if (!result.daily) throw new Error('daily is null');
+      expect(result.daily.resetsAt).not.toBeNull();
+      if (!result.daily.resetsAt) throw new Error('resetsAt is null');
       // Should be a valid ISO string for tomorrow at midnight
-      const resetTime = new Date(result.daily!.resetsAt!);
+      const resetTime = new Date(result.daily.resetsAt);
       expect(resetTime.getHours()).toBe(0);
       expect(resetTime.getMinutes()).toBe(0);
       expect(resetTime.getSeconds()).toBe(0);
@@ -179,7 +181,8 @@ describe('sub2api provider', () => {
       const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
 
       expect(result.weekly).not.toBeNull();
-      expect(result.weekly!.resetsAt).toBeNull();
+      if (!result.weekly) throw new Error('weekly is null');
+      expect(result.weekly.resetsAt).toBeNull();
     });
 
     it('monthly resetsAt is null (no computed reset time)', async () => {
@@ -188,7 +191,8 @@ describe('sub2api provider', () => {
       const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
 
       expect(result.monthly).not.toBeNull();
-      expect(result.monthly!.resetsAt).toBeNull();
+      if (!result.monthly) throw new Error('monthly is null');
+      expect(result.monthly.resetsAt).toBeNull();
     });
   });
 

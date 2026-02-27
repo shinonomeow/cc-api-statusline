@@ -25,8 +25,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // Restore original env
-  Object.keys(process.env).forEach((k) => delete process.env[k]);
+  // Restore original env - clear all keys first
+  for (const key of Object.keys(process.env)) {
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete process.env[key];
+  }
   Object.assign(process.env, origEnv);
 });
 
