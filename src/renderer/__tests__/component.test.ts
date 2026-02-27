@@ -154,13 +154,14 @@ describe('renderComponent - quota components', () => {
       expect(result).toBeNull();
     });
 
-    test('handles null limit as 0% usage', () => {
+    test('handles null limit (unlimited) - hidden at provider level', () => {
+      // Note: Provider-level createQuotaWindow() now returns null for unlimited quotas,
+      // so this tests the renderer's behavior when it receives null data
       const data = createMockUsage({
-        daily: createQuotaWindow(50, null), // unlimited
+        daily: null, // unlimited quota is hidden at provider level
       });
       const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
-      const plain = stripAnsi(result ?? '');
-      expect(plain).toContain('0%');
+      expect(result).toBeNull(); // Component is hidden
     });
   });
 

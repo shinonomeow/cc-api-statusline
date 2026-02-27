@@ -117,20 +117,18 @@ function createQuotaWindow(
   limit: number | null | undefined,
   resetsAt: string
 ): QuotaWindow | null {
+  // No usage data → hide component
   if (used === undefined) return null;
 
-  // null limit means unlimited
-  const actualLimit = limit === null || limit === undefined ? null : limit;
+  // No limit (unlimited) → hide component (not useful to display)
+  if (limit === null || limit === undefined) return null;
 
   // Compute remaining
-  let remaining: number | null = null;
-  if (actualLimit !== null) {
-    remaining = Math.max(0, actualLimit - used);
-  }
+  const remaining = Math.max(0, limit - used);
 
   return {
     used,
-    limit: actualLimit,
+    limit,
     remaining,
     resetsAt,
   };

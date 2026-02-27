@@ -24,6 +24,15 @@ describe('autodetect provider', () => {
       expect(provider).toBe('claude-relay-service');
     });
 
+    it('should detect claude-relay-service from known relay domains', () => {
+      const provider1 = detectProvider('https://v2.vexke.com/api');
+      const provider2 = detectProvider('https://claude-relay.example.com');
+      const provider3 = detectProvider('https://api.clauderelay.com');
+      expect(provider1).toBe('claude-relay-service');
+      expect(provider2).toBe('claude-relay-service');
+      expect(provider3).toBe('claude-relay-service');
+    });
+
     it('should default to sub2api for unknown URLs', () => {
       const provider = detectProvider('https://api.example.com');
       expect(provider).toBe('sub2api');

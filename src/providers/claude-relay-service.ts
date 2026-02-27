@@ -77,27 +77,25 @@ function computeWeeklyResetTime(resetDay: number, resetHour: number): string {
 
 /**
  * Create QuotaWindow from usage/limit values
- * 0 limit means unlimited → null
+ * No limit or 0 limit means unlimited → hide component
  */
 function createQuotaWindow(
   used: number | undefined,
   limit: number | undefined,
   resetsAt: string | null
 ): QuotaWindow | null {
+  // No usage data → hide component
   if (used === undefined) return null;
 
-  // 0 or undefined limit means unlimited → null
-  const actualLimit = limit && limit > 0 ? limit : null;
+  // No limit or 0 limit (unlimited) → hide component (not useful to display)
+  if (!limit || limit <= 0) return null;
 
   // Compute remaining
-  let remaining: number | null = null;
-  if (actualLimit !== null) {
-    remaining = Math.max(0, actualLimit - used);
-  }
+  const remaining = Math.max(0, limit - used);
 
   return {
     used,
-    limit: actualLimit,
+    limit,
     remaining,
     resetsAt,
   };

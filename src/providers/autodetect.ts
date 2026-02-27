@@ -59,7 +59,10 @@ export function detectProvider(
   if (
     normalizedUrl.includes('/apistats') ||
     normalizedUrl.includes('relay') ||
-    normalizedUrl.includes('/api/user-stats')
+    normalizedUrl.includes('/api/user-stats') ||
+    normalizedUrl.includes('vexke.com') ||      // Known relay domain
+    normalizedUrl.includes('claude-relay') ||    // Common naming pattern
+    normalizedUrl.includes('clauderelay')        // Common naming pattern
   ) {
     return 'claude-relay-service';
   }
