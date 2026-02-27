@@ -1,6 +1,6 @@
 # Current Implementation (Snapshot)
 
-> Last updated: 2026-02-26
+> Last updated: 2026-02-27
 > This file reflects the actual code in `src/`.
 > For complete rules and implementation guidance, use `docs/implementation-handbook.md`.
 
@@ -20,23 +20,24 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 
 ## Main flow
 
-`src/main.ts` is a thin orchestrator:
+`src/main.ts` is a **thin router** (~78 lines). All logic is delegated to `src/cli/`:
 
-1. parse args (`--help`, `--version`, `--once`, `--config`, `--install`, `--uninstall`, `--runner`, `--force`)
-2. handle install/uninstall if requested (modifies `~/.claude/settings.json`)
-3. discard stdin payload (for host compatibility)
-4. read env + `settings.json` overlay (`src/services/env.ts`)
-5. validate required env
-6. load config + compute config hash
-7. resolve provider + adapter
-8. read cache entry for `ANTHROPIC_BASE_URL`
-9. build `ExecutionContext`
-10. run `executeCycle()` (`src/core/execute-cycle.ts`)
-11. apply side effects:
-    - In piped mode: prepend `\x1b[0m` (ANSI reset) and replace spaces with NBSP (`\u00A0`)
-    - In TTY mode: write output as-is
-    - Write cache if updated
-    - Exit with result code
+1. discard stdin payload (for host compatibility)
+2. `parseArgs()` — `src/cli/args.ts`
+3. route to handler:
+   - `--help` → `showHelp()` → exit 0
+   - `--version` → `showVersion()` → exit 0
+   - `--install` → `handleInstall(args)` — `src/cli/commands.ts`
+   - `--uninstall` → `handleUninstall()` — `src/cli/commands.ts`
+   - TTY + no `--once` → interactive placeholder
+   - otherwise → `executePipedMode(args)` — `src/cli/piped-mode.ts`
+
+### `executePipedMode` flow (`src/cli/piped-mode.ts`)
+
+1. `buildExecutionContext(args)` — reads env, config, cache, resolves provider
+2. run `executeCycle()` (`src/core/execute-cycle.ts`)
+3. `formatOutput(output, isPiped)` — prepend ANSI reset, replace spaces with NBSP in piped mode
+4. write cache if updated, exit with result code
 
 ## Unified execution core paths (`executeCycle`)
 
@@ -61,9 +62,11 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 - `settings.json` overlay source:
   - `CLAUDE_CONFIG_DIR/settings.json` if `CLAUDE_CONFIG_DIR` is set
   - otherwise `~/.claude/settings.json`
-- Cache writes are atomic (`.tmp` + `rename`) and non-fatal
-- Piped timeout budget uses `CC_STATUSLINE_TIMEOUT` in `main.ts` (default `1000ms`)
+- Cache writes are atomic (`.tmp` + `rename`) via `atomicWriteFile()` in `src/services/atomic-write.ts`
+- Directory creation uses `ensureDir()` in `src/services/ensure-dir.ts` (mode 0700)
+- Piped timeout budget uses `CC_STATUSLINE_TIMEOUT` (default `1000ms`)
 - Version is read dynamically from `package.json`
+- Shared constants live in `src/core/constants.ts`: `EXIT_BUFFER_MS`, `LOADING_FALLBACK`, `DEFAULT_FETCH_TIMEOUT_MS`, `STALENESS_THRESHOLD_MINUTES`, `VERY_STALE_THRESHOLD_MINUTES`
 
 ## Debug logging
 
@@ -98,15 +101,16 @@ node dist/cc-api-statusline.js --uninstall
 ## Testing status
 
 - Full gate command: `bun run check`
-- Current suite: **356 tests** / **21 files**
+- Current suite: **477 tests** / **30 files**
 - Includes: unit tests, renderer tests, core path tests, settings tests, E2E smoke tests, perf tests
 - CI/CD: GitHub Actions workflows for PR checks and npm publish on tags
 
 ## Authoritative code directories
 
-- `src/main.ts`
-- `src/core/`
-- `src/providers/`
-- `src/services/` (includes `logger.ts`, `settings.ts`)
-- `src/renderer/`
-- `src/types/`
+- `src/main.ts` — thin router
+- `src/cli/` — args, commands, piped-mode
+- `src/core/` — execute-cycle, constants
+- `src/providers/` — sub2api, relay, custom, autodetect, quota-window, custom-mapping
+- `src/services/` — env, cache, config, settings, logger, atomic-write, ensure-dir
+- `src/renderer/` — component (RenderContext), bar, colors, countdown, error, transition, icons, truncate
+- `src/types/` — config (DEFAULT_COMPONENT_ORDER typed as ComponentId[]), cache (CacheErrorState), normalized-usage

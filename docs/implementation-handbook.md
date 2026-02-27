@@ -1,7 +1,7 @@
 # cc-api-statusline - Implementation Handbook (Current)
 
 This handbook is the implementation source of truth for the current repository state.
-It reflects code behavior in `src/` as of 2026-02-26.
+It reflects code behavior in `src/` as of 2026-02-27.
 
 ## 0. Scope and Precedence
 
@@ -9,7 +9,7 @@ Use this precedence order when documents disagree:
 
 1. `src/` code
 2. this handbook (`docs/implementation-handbook.md`)
-3. focused docs (`docs/ccstatusline-contract-reference.md`, `docs/perf-budget.md`, `docs/current-implementation.md`)
+3. focused doc (`docs/current-implementation.md`)
 4. legacy/spec extracts (`docs/spec-*.md`)
 
 This project currently implements a unified single-cycle execution model (not a daemon poll loop in `main.ts`).
@@ -415,27 +415,81 @@ Rules:
 
 ## 10. ccstatusline Host Contract Notes
 
-When used as a ccstatusline Custom Command:
+### 10.1 Process invocation
 
-- host pipes JSON to stdin; this tool ignores payload content
-- host default timeout is typically 1000ms
-- host may strip ANSI when `preserveColors` is false
-- host non-zero exit handling can surface as `[Exit: N]`
+ccstatusline invokes custom commands with Node `execSync` and:
 
-Practical implication:
+- `input: JSON.stringify(context.data)` — stdin payload is JSON text; must be accepted without blocking
+- `timeout: item.timeout ?? 1000` — enforced by host process
+- `stdio: ['pipe', 'pipe', 'ignore']` — stderr is ignored by host
+- `env: process.env` — host forwards environment as-is; no dedicated timeout env variable injected
 
-- prioritize fast output and avoid timeout paths in piped mode
-- treat exit code semantics carefully for widget UX
+### 10.2 Output handling
+
+- host applies `.trim()` to stdout content
+- if `preserveColors` is false, host strips SGR codes: `output.replace(/\x1b\[[0-9;]*m/g, '')`
+- optional `maxWidth` truncation applied by host after command completion
+- **important**: when `preserveColors: true` and `maxWidth` is set, host truncation checks **byte length including ANSI escape sequences** — ANSI codes inflate byte length and can cause premature truncation; perform ANSI-aware truncation internally to stay within the visible limit
+
+### 10.3 Error surface
+
+Host maps failures to fixed tokens:
+
+- `ENOENT` → `[Cmd not found]`
+- `ETIMEDOUT` → `[Timeout]`
+- `EACCES` → `[Permission denied]`
+- process signal → `[Signal: <name>]`
+- non-zero exit status → `[Exit: N]`
+- fallback → `[Error]`
+
+### 10.4 Non-negotiable constraints
+
+1. piped mode must return within 1000ms default host timeout
+2. command must accept stdin JSON but does not need to use it for provider data
+3. color output must degrade cleanly when `preserveColors` is false
+4. do not assume host sets `CC_STATUSLINE_TIMEOUT`; use safe default budget unless explicitly overridden
+5. use non-zero exits only for actionable error states; prefer fast fallback output to reduce timeout risk
 
 ## 11. Performance Guidance
 
-Performance targets are maintained in `docs/perf-budget.md` and perf tests.
+### 11.1 Budget targets
 
-Current focus:
+- Host default timeout: **1000ms**
+- Planning target: return output within **≤900ms**
+- Safety margin: **≥50ms** tail buffer in `execute-cycle.ts`
 
-- Path A/B return well under host timeout budget
-- fallback path must return quickly when network is unavailable
-- avoid network fetch when deadline budget is already exhausted
+Piped-mode path targets:
+
+| Path | Condition | Target | p95 |
+|------|-----------|--------|-----|
+| A | warm cache, rendered line valid | ≤25ms | ≤100ms |
+| B | warm cache, stale render hash | ≤55ms | ≤100ms |
+| C | cold/stale cache, network fetch | ≤840ms worst case | — |
+| D | fallback (budget exhausted or fetch failed) | ≤25ms | — |
+
+### 11.2 Hard rules
+
+1. Never start network fetch when remaining budget < request timeout window
+2. Prefer stale cached output over timeout
+3. Avoid full config parse/validation in fast path when rendered cache is usable
+4. Use per-baseUrl cache files to avoid cross-terminal cache contention
+
+### 11.3 Measurement checklist
+
+Run each scenario ≥10 times, record p50/p95:
+
+1. piped mode, warm rendered cache
+2. piped mode, warm data cache with forced re-render
+3. piped mode, cold cache + unavailable network
+4. standalone single fetch (`--once`) with valid network
+
+Record: wall clock duration, path taken (A/B/C/D), whether deadline was met.
+
+### 11.4 Release gate
+
+- p95 of warm rendered-cache path ≤100ms
+- no timeout in piped-mode tests under default 1000ms host budget
+- fallback path returns deterministic output under offline/error scenarios
 
 ## 12. Testing and Debugging
 

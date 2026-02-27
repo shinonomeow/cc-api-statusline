@@ -80,7 +80,7 @@ After `maxConsecutiveFailures` (default 5), polling pauses entirely for `pauseDu
 | **Redirect blocking** | Block HTTP redirects to domains different from the original `ANTHROPIC_BASE_URL` host | Prevent token exfiltration via redirect to attacker-controlled server |
 | **Request timeout** | `requestTimeoutSeconds` (default 5s) per request | Prevent hanging on unresponsive servers |
 
-> Inspired by claude-pulse's `_TOKEN_ALLOWED_DOMAINS` pattern. Since cc-api-statusline works with arbitrary proxy URLs (not a fixed domain set), we validate protocol + block cross-domain redirects instead of maintaining a domain allowlist.
+> Since cc-api-statusline works with arbitrary proxy URLs (not a fixed domain set), we validate protocol + block cross-domain redirects instead of maintaining a domain allowlist. This is a standard security pattern for preventing token exfiltration via untrusted endpoints.
 
 ---
 
@@ -324,7 +324,7 @@ POLLING ──(401/403)──→ AUTH_ERROR_HALTED
 
 > Not in v1 scope. Documented here for future implementation.
 
-Track usage samples over time to power sparklines and runway estimation (inspired by claude-pulse).
+Track usage samples over time to power sparklines and runway estimation.
 
 ### History file
 
