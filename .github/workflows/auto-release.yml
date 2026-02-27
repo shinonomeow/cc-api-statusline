@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # Required to create tags and releases
+      id-token: write  # Required for npm provenance and OIDC
 
     steps:
       - name: Checkout code
@@ -90,3 +91,36 @@ jobs:
           \`\`\`bash
           bunx -y cc-api-statusline@${{ steps.current_version.outputs.version }}
           \`\`\`"
+
+      - name: Setup Bun
+        if: steps.version_changed.outputs.changed == 'true'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        if: steps.version_changed.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        if: steps.version_changed.outputs.changed == 'true'
+        run: bun install
+
+      - name: Run tests and linting
+        if: steps.version_changed.outputs.changed == 'true'
+        run: bun run check
+
+      - name: Upgrade npm to latest
+        if: steps.version_changed.outputs.changed == 'true'
+        run: npm install -g npm@latest
+
+      - name: Verify npm version
+        if: steps.version_changed.outputs.changed == 'true'
+        run: npm --version
+
+      - name: Publish to npm with provenance
+        if: steps.version_changed.outputs.changed == 'true'
+        run: npm publish --provenance --access public
