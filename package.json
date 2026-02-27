@@ -1,6 +1,6 @@
 {
   "name": "cc-api-statusline",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Claude Code statusline tool that polls API usage from third-party proxy backends",
   "type": "module",
   "bin": {
