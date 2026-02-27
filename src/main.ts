@@ -241,14 +241,20 @@ async function main(): Promise<void> {
   const configHash = computeConfigHash(configPath);
   logger.debug('Config loaded', { configPath, configHash });
 
-  // Resolve provider
-  const providerId = resolveProvider(
+  // Resolve provider (with mode-aware probe timeout)
+  // In piped mode, cap probe timeout to budget - 200ms overhead
+  // In --once mode, allow longer probe timeout (3s)
+  const probeTimeout = isPiped
+    ? Math.min(1500, Math.max(200, Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000) - 200))
+    : 3000;
+  const providerId = await resolveProvider(
     baseUrl,
     env.providerOverride,
-    config.customProviders ?? {}
+    config.customProviders ?? {},
+    probeTimeout
   );
   const provider = getProvider(providerId, config.customProviders ?? {});
-  logger.debug('Provider resolved', { providerId });
+  logger.debug('Provider resolved', { providerId, probeTimeout });
 
   if (!provider) {
     logger.error('Provider not found', { providerId });

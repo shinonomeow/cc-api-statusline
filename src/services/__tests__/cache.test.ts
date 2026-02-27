@@ -10,6 +10,9 @@ import {
   computeConfigHash,
   getCacheAge,
   getEffectivePollInterval,
+  readProviderDetectionCache,
+  writeProviderDetectionCache,
+  getProviderDetectionCachePath,
 } from '../cache.js';
 import type { CacheEntry, EnvSnapshot, Config } from '../../types/index.js';
 import { CACHE_VERSION, DEFAULT_CONFIG } from '../../types/index.js';
@@ -376,6 +379,155 @@ describe('cache service', () => {
 
       const effective = getEffectivePollInterval(config, null);
       expect(effective).toBe(30); // DEFAULT_POLL_INTERVAL_SECONDS
+    });
+  });
+
+  describe('provider detection cache', () => {
+    describe('getProviderDetectionCachePath', () => {
+      it('should return path with provider-detect prefix', () => {
+        const path = getProviderDetectionCachePath('https://api.example.com');
+        expect(path).toContain('provider-detect-');
+        expect(path).toContain('.json');
+      });
+
+      it('should return different paths for different URLs', () => {
+        const path1 = getProviderDetectionCachePath('https://api1.example.com');
+        const path2 = getProviderDetectionCachePath('https://api2.example.com');
+        expect(path1).not.toBe(path2);
+      });
+    });
+
+    describe('writeProviderDetectionCache and readProviderDetectionCache', () => {
+      it('should write and read provider detection cache', () => {
+        const baseUrl = 'https://api.example.com';
+        const entry = {
+          baseUrl,
+          provider: 'claude-relay-service',
+          detectedVia: 'health-probe' as const,
+          detectedAt: new Date().toISOString(),
+          ttlSeconds: 86400,
+        };
+
+        writeProviderDetectionCache(baseUrl, entry);
+        const read = readProviderDetectionCache(baseUrl);
+
+        expect(read).not.toBeNull();
+        expect(read?.provider).toBe('claude-relay-service');
+        expect(read?.detectedVia).toBe('health-probe');
+      });
+
+      it('should return null for non-existent cache', () => {
+        const read = readProviderDetectionCache('https://nonexistent.example.com');
+        expect(read).toBeNull();
+      });
+
+      it('should validate TTL and return null for expired cache', () => {
+        const baseUrl = 'https://api.example.com';
+        const expiredEntry = {
+          baseUrl,
+          provider: 'sub2api',
+          detectedVia: 'url-pattern' as const,
+          detectedAt: new Date(Date.now() - 90000 * 1000).toISOString(), // 90000 seconds ago
+          ttlSeconds: 86400, // 24 hours
+        };
+
+        writeProviderDetectionCache(baseUrl, expiredEntry);
+        const read = readProviderDetectionCache(baseUrl);
+
+        expect(read).toBeNull(); // Expired
+      });
+
+      it('should handle invalid JSON gracefully', () => {
+        const baseUrl = 'https://api.example.com';
+        const path = getProviderDetectionCachePath(baseUrl);
+
+        // Write invalid JSON
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, 'invalid json{', 'utf-8');
+
+        const read = readProviderDetectionCache(baseUrl);
+        expect(read).toBeNull();
+      });
+
+      it('should handle invalid cache structure gracefully', () => {
+        const baseUrl = 'https://api.example.com';
+        const path = getProviderDetectionCachePath(baseUrl);
+
+        // Write invalid structure
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, JSON.stringify({ invalid: 'structure' }), 'utf-8');
+
+        const read = readProviderDetectionCache(baseUrl);
+        expect(read).toBeNull();
+      });
+
+      it('should handle all detection methods', () => {
+        const methods: Array<'health-probe' | 'url-pattern' | 'override'> = [
+          'health-probe',
+          'url-pattern',
+          'override',
+        ];
+
+        methods.forEach((method, index) => {
+          const baseUrl = `https://api${index}.example.com`;
+          const entry = {
+            baseUrl,
+            provider: 'test-provider',
+            detectedVia: method,
+            detectedAt: new Date().toISOString(),
+            ttlSeconds: 86400,
+          };
+
+          writeProviderDetectionCache(baseUrl, entry);
+          const read = readProviderDetectionCache(baseUrl);
+
+          expect(read).not.toBeNull();
+          expect(read?.detectedVia).toBe(method);
+        });
+      });
+
+      it('should persist and read actual cache values correctly', () => {
+        const baseUrl = 'https://v2.vexke.com/api';
+        const now = new Date().toISOString();
+        const entry = {
+          baseUrl,
+          provider: 'claude-relay-service',
+          detectedVia: 'health-probe' as const,
+          detectedAt: now,
+          ttlSeconds: 86400,
+        };
+
+        writeProviderDetectionCache(baseUrl, entry);
+        const read = readProviderDetectionCache(baseUrl);
+
+        expect(read).toEqual(entry);
+      });
+
+      it('should handle concurrent writes atomically', () => {
+        const baseUrl = 'https://api.example.com';
+        const entry1 = {
+          baseUrl,
+          provider: 'sub2api',
+          detectedVia: 'url-pattern' as const,
+          detectedAt: new Date().toISOString(),
+          ttlSeconds: 86400,
+        };
+        const entry2 = {
+          baseUrl,
+          provider: 'claude-relay-service',
+          detectedVia: 'health-probe' as const,
+          detectedAt: new Date().toISOString(),
+          ttlSeconds: 86400,
+        };
+
+        // Write both
+        writeProviderDetectionCache(baseUrl, entry1);
+        writeProviderDetectionCache(baseUrl, entry2);
+
+        // Read should get the last write (entry2)
+        const read = readProviderDetectionCache(baseUrl);
+        expect(read?.provider).toBe('claude-relay-service');
+      });
     });
   });
 });

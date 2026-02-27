@@ -159,4 +159,60 @@ describe('claude-relay-service provider', () => {
       );
     });
   });
+
+  describe('URL construction', () => {
+    it('should construct URL using origin, not full baseUrl with path', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      await fetchClaudeRelayService('https://v2.vexke.com/api', 'test-token', DEFAULT_CONFIG);
+
+      // Should use https://v2.vexke.com (origin) not https://v2.vexke.com/api
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://v2.vexke.com/apiStats/api/user-stats',
+        expect.anything(),
+        5000,
+        null
+      );
+    });
+
+    it('should handle baseUrl without path correctly', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      await fetchClaudeRelayService('https://relay.example.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://relay.example.com/apiStats/api/user-stats',
+        expect.anything(),
+        5000,
+        null
+      );
+    });
+
+    it('should handle baseUrl with deep path correctly', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      await fetchClaudeRelayService('https://api.example.com/v1/claude', 'test-token', DEFAULT_CONFIG);
+
+      // Should extract origin and use it
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.example.com/apiStats/api/user-stats',
+        expect.anything(),
+        5000,
+        null
+      );
+    });
+
+    it('should handle baseUrl with port correctly', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      await fetchClaudeRelayService('https://localhost:3000/api', 'test-token', DEFAULT_CONFIG);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://localhost:3000/apiStats/api/user-stats',
+        expect.anything(),
+        5000,
+        null
+      );
+    });
+  });
 });

@@ -1,7 +1,7 @@
 /**
  * claude-relay-service Provider Adapter
  *
- * Endpoint: POST {baseUrl}/apiStats/api/user-stats
+ * Endpoint: POST {origin}/apiStats/api/user-stats
  * Auth: Body auth with { "apiKey": token }
  * Billing mode: Always "subscription"-like (cost-limit based)
  */
@@ -10,6 +10,7 @@ import type { NormalizedUsage, QuotaWindow, Config } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
 import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
+import { extractOrigin } from './health-probe.js';
 
 /**
  * claude-relay-service API response shape
@@ -110,7 +111,10 @@ export async function fetchClaudeRelayService(
   config: Config,
   timeoutMs: number = 5000
 ): Promise<NormalizedUsage> {
-  const url = `${baseUrl}/apiStats/api/user-stats`;
+  // Extract origin to properly construct URL
+  // /apiStats is mounted at root, not under /api
+  const origin = extractOrigin(baseUrl);
+  const url = `${origin}/apiStats/api/user-stats`;
 
   // Resolve User-Agent
   const resolvedUA = resolveUserAgent(config.spoofClaudeCodeUA);

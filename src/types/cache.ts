@@ -74,3 +74,38 @@ export function isCacheEntry(value: unknown): value is CacheEntry {
     (c['errorState'] === null || typeof c['errorState'] === 'object')
   );
 }
+
+/**
+ * Provider detection cache entry
+ *
+ * Stored on disk to avoid re-probing health endpoints on every run.
+ * TTL is 24 hours to balance between accuracy and performance.
+ */
+export interface ProviderDetectionCacheEntry {
+  baseUrl: string; // Original base URL
+  provider: string; // Detected provider ID
+  detectedVia: 'health-probe' | 'url-pattern' | 'override'; // Detection method
+  detectedAt: string; // ISO-8601 UTC timestamp
+  ttlSeconds: number; // TTL in seconds (typically 86400 = 24 hours)
+}
+
+/**
+ * Provider detection cache TTL (24 hours)
+ */
+export const PROVIDER_DETECTION_TTL_SECONDS = 86400;
+
+/**
+ * Type guard for ProviderDetectionCacheEntry
+ */
+export function isProviderDetectionCacheEntry(value: unknown): value is ProviderDetectionCacheEntry {
+  if (typeof value !== 'object' || value === null) return false;
+  const c = value as Record<string, unknown>;
+
+  return (
+    typeof c['baseUrl'] === 'string' &&
+    typeof c['provider'] === 'string' &&
+    (c['detectedVia'] === 'health-probe' || c['detectedVia'] === 'url-pattern' || c['detectedVia'] === 'override') &&
+    typeof c['detectedAt'] === 'string' &&
+    typeof c['ttlSeconds'] === 'number'
+  );
+}

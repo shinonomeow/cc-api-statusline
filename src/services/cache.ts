@@ -7,8 +7,8 @@
 import { readFileSync, writeFileSync, existsSync, unlinkSync, renameSync, chmodSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import type { CacheEntry, EnvSnapshot, Config } from '../types/index.js';
-import { CACHE_VERSION, isCacheEntry } from '../types/index.js';
+import type { CacheEntry, EnvSnapshot, Config, ProviderDetectionCacheEntry } from '../types/index.js';
+import { CACHE_VERSION, isCacheEntry, isProviderDetectionCacheEntry } from '../types/index.js';
 import { shortHash, sha256 } from './hash.js';
 
 /**
@@ -270,4 +270,105 @@ export function getEffectivePollInterval(
   // Use config value
   const fromConfig = config.pollIntervalSeconds ?? DEFAULT_POLL_INTERVAL_SECONDS;
   return Math.max(5, fromConfig);
+}
+
+/**
+ * Get provider detection cache file path for a specific base URL
+ *
+ * @param baseUrl - ANTHROPIC_BASE_URL
+ * @returns Path to provider detection cache file (provider-detect-<hash>.json)
+ */
+export function getProviderDetectionCachePath(baseUrl: string): string {
+  const hash = shortHash(baseUrl, 12);
+  return join(getCacheDir(), `provider-detect-${hash}.json`);
+}
+
+/**
+ * Read provider detection cache file
+ *
+ * @param baseUrl - ANTHROPIC_BASE_URL
+ * @returns Cache entry or null if not found/invalid/expired
+ */
+export function readProviderDetectionCache(baseUrl: string): ProviderDetectionCacheEntry | null {
+  const path = getProviderDetectionCachePath(baseUrl);
+
+  if (!existsSync(path)) {
+    return null;
+  }
+
+  try {
+    const content = readFileSync(path, 'utf-8');
+    const data = JSON.parse(content) as unknown;
+
+    // Validate structure
+    if (!isProviderDetectionCacheEntry(data)) {
+      console.warn(`Invalid provider detection cache structure at ${path}`);
+      return null;
+    }
+
+    // Check TTL
+    const detectedAt = new Date(data.detectedAt).getTime();
+    const now = Date.now();
+    const age = now - detectedAt;
+    const ttlMs = data.ttlSeconds * 1000;
+
+    if (age >= ttlMs) {
+      // Expired, delete silently
+      try {
+        unlinkSync(path);
+      } catch {
+        // Ignore deletion errors
+      }
+      return null;
+    }
+
+    return data;
+  } catch (error: unknown) {
+    console.warn(`Failed to read provider detection cache from ${path}: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Write provider detection cache file (atomic)
+ *
+ * Uses .tmp + rename for atomicity. Fire-and-forget - never throws.
+ *
+ * @param baseUrl - ANTHROPIC_BASE_URL
+ * @param entry - Provider detection cache entry to write
+ */
+export function writeProviderDetectionCache(baseUrl: string, entry: ProviderDetectionCacheEntry): void {
+  const path = getProviderDetectionCachePath(baseUrl);
+  const tmpPath = `${path}.tmp`;
+
+  try {
+    ensureCacheDir();
+
+    // Serialize
+    const content = JSON.stringify(entry, null, 2);
+
+    // Write to temp file
+    writeFileSync(tmpPath, content, { encoding: 'utf-8', mode: 0o600 });
+
+    // Try to set permissions explicitly (no-op on Windows)
+    try {
+      chmodSync(tmpPath, 0o600);
+    } catch {
+      // Ignore permission errors on Windows
+    }
+
+    // Atomic rename
+    renameSync(tmpPath, path);
+  } catch (error: unknown) {
+    console.warn(`Failed to write provider detection cache to ${path}: ${error}`);
+
+    // Cleanup temp file on error
+    try {
+      if (existsSync(tmpPath)) {
+        unlinkSync(tmpPath);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
 }

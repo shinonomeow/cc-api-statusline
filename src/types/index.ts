@@ -48,9 +48,9 @@ export {
 } from './config.js';
 
 // Cache types
-export type { CacheEntry, ErrorState } from './cache.js';
+export type { CacheEntry, ErrorState, ProviderDetectionCacheEntry } from './cache.js';
 
-export { CACHE_VERSION, DEFAULT_CACHE_TTL_SECONDS, isCacheEntry } from './cache.js';
+export { CACHE_VERSION, DEFAULT_CACHE_TTL_SECONDS, isCacheEntry, PROVIDER_DETECTION_TTL_SECONDS, isProviderDetectionCacheEntry } from './cache.js';
 
 // Env types (from services, but used in types for cache validation)
 export type { EnvSnapshot } from '../services/env.js';

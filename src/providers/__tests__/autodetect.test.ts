@@ -1,59 +1,111 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
-  detectProvider,
   resolveProvider,
   invalidateDetectionCache,
   clearDetectionCache,
   getDetectionCacheSize,
 } from '../autodetect.js';
 import type { CustomProviderConfig } from '../../types/index.js';
+import * as healthProbe from '../health-probe.js';
+import * as cache from '../../services/cache.js';
 
 describe('autodetect provider', () => {
   beforeEach(() => {
     clearDetectionCache();
+    vi.clearAllMocks();
   });
 
-  describe('detectProvider', () => {
-    it('should detect claude-relay-service from apiStats URL', () => {
-      const provider = detectProvider('https://api.example.com/apiStats/api/user-stats');
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('resolveProvider with override', () => {
+    it('should use explicit override when provided', async () => {
+      const provider = await resolveProvider(
+        'https://api.example.com',
+        'my-override',
+        {},
+        1500
+      );
+      expect(provider).toBe('my-override');
+    });
+
+    it('should bypass cache when override is used', async () => {
+      const baseUrl = 'https://api.example.com';
+
+      // Cache with autodetection
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+      await resolveProvider(baseUrl, null, {}, 1500);
+      expect(getDetectionCacheSize()).toBe(1);
+
+      // Override should not affect cache
+      const provider = await resolveProvider(baseUrl, 'my-override', {}, 1500);
+      expect(provider).toBe('my-override');
+      expect(getDetectionCacheSize()).toBe(1);
+    });
+  });
+
+  describe('resolveProvider with in-memory cache', () => {
+    it('should cache detection results', async () => {
+      const baseUrl = 'https://api.example.com';
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+
+      // First call - detection
+      await resolveProvider(baseUrl, null, {}, 1500);
+      expect(getDetectionCacheSize()).toBe(1);
+
+      // Second call - should use memory cache (no probe)
+      await resolveProvider(baseUrl, null, {}, 1500);
+      expect(getDetectionCacheSize()).toBe(1);
+      expect(healthProbe.probeHealth).toHaveBeenCalledTimes(1); // Only called once
+    });
+
+    it('should cache different URLs separately', async () => {
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+
+      await resolveProvider('https://api1.example.com', null, {}, 1500);
+      await resolveProvider('https://api2.example.com', null, {}, 1500);
+
+      expect(getDetectionCacheSize()).toBe(2);
+    });
+  });
+
+  describe('resolveProvider with disk cache', () => {
+    it('should use disk cache when available', async () => {
+      const baseUrl = 'https://api.example.com';
+      const mockDiskCache = {
+        baseUrl,
+        provider: 'claude-relay-service',
+        detectedVia: 'health-probe' as const,
+        detectedAt: new Date().toISOString(),
+        ttlSeconds: 86400,
+      };
+
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(mockDiskCache);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+
+      const provider = await resolveProvider(baseUrl, null, {}, 1500);
       expect(provider).toBe('claude-relay-service');
+      expect(cache.readProviderDetectionCache).toHaveBeenCalledWith(baseUrl);
+      expect(healthProbe.probeHealth).not.toHaveBeenCalled(); // Should not probe if disk cache hit
+      expect(getDetectionCacheSize()).toBe(1); // Should populate memory cache
     });
 
-    it('should detect claude-relay-service from relay keyword', () => {
-      const provider = detectProvider('https://relay.example.com/api');
-      expect(provider).toBe('claude-relay-service');
-    });
+    it('should probe when disk cache is null', async () => {
+      const baseUrl = 'https://api.example.com';
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue('sub2api');
 
-    it('should detect claude-relay-service from known relay domains', () => {
-      const provider1 = detectProvider('https://v2.vexke.com/api');
-      const provider2 = detectProvider('https://claude-relay.example.com');
-      const provider3 = detectProvider('https://api.clauderelay.com');
-      expect(provider1).toBe('claude-relay-service');
-      expect(provider2).toBe('claude-relay-service');
-      expect(provider3).toBe('claude-relay-service');
-    });
-
-    it('should default to sub2api for unknown URLs', () => {
-      const provider = detectProvider('https://api.example.com');
+      const provider = await resolveProvider(baseUrl, null, {}, 1500);
       expect(provider).toBe('sub2api');
-    });
-
-    it('should be case-insensitive', () => {
-      const provider1 = detectProvider('https://API.EXAMPLE.COM/APISTATS');
-      const provider2 = detectProvider('https://api.example.com/apistats');
-      expect(provider1).toBe('claude-relay-service');
-      expect(provider2).toBe('claude-relay-service');
-    });
-
-    it('should handle trailing slashes', () => {
-      const provider1 = detectProvider('https://api.example.com/');
-      const provider2 = detectProvider('https://api.example.com');
-      expect(provider1).toBe(provider2);
+      expect(healthProbe.probeHealth).toHaveBeenCalledWith(baseUrl, 1500);
     });
   });
 
-  describe('detectProvider with custom providers', () => {
-    it('should prioritize custom providers over built-in', () => {
+  describe('resolveProvider with custom providers', () => {
+    it('should prioritize custom providers with URL patterns', async () => {
       const customProviders: Record<string, CustomProviderConfig> = {
         'my-custom': {
           id: 'my-custom',
@@ -65,11 +117,15 @@ describe('autodetect provider', () => {
         },
       };
 
-      const provider = detectProvider('https://custom.example.com/api', customProviders);
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+
+      const provider = await resolveProvider('https://custom.example.com/api', null, customProviders, 1500);
       expect(provider).toBe('my-custom');
+      expect(healthProbe.probeHealth).not.toHaveBeenCalled(); // URL pattern should match before probe
     });
 
-    it('should match custom provider patterns as substrings', () => {
+    it('should match custom provider patterns as substrings', async () => {
       const customProviders: Record<string, CustomProviderConfig> = {
         'my-proxy': {
           id: 'my-proxy',
@@ -81,134 +137,147 @@ describe('autodetect provider', () => {
         },
       };
 
-      const provider1 = detectProvider('https://my-proxy.com/v1', customProviders);
-      const provider2 = detectProvider('https://proxy.example.org/api', customProviders);
-      const provider3 = detectProvider('https://api.my-proxy.com', customProviders);
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+
+      const provider1 = await resolveProvider('https://my-proxy.com/v1', null, customProviders, 1500);
+      const provider2 = await resolveProvider('https://proxy.example.org/api', null, customProviders, 1500);
+      const provider3 = await resolveProvider('https://api.my-proxy.com', null, customProviders, 1500);
 
       expect(provider1).toBe('my-proxy');
       expect(provider2).toBe('my-proxy');
       expect(provider3).toBe('my-proxy');
     });
+  });
 
-    it('should check multiple custom providers in order', () => {
-      const customProviders: Record<string, CustomProviderConfig> = {
-        'provider-a': {
-          id: 'provider-a',
-          endpoint: '/api',
-          method: 'GET',
-          auth: { type: 'header', header: 'Auth' },
-          urlPatterns: ['provider-a.com'],
-          responseMapping: {},
-        },
-        'provider-b': {
-          id: 'provider-b',
-          endpoint: '/api',
-          method: 'GET',
-          auth: { type: 'header', header: 'Auth' },
-          urlPatterns: ['provider-b.com'],
-          responseMapping: {},
-        },
-      };
+  describe('resolveProvider with health probe', () => {
+    it('should detect provider via health probe', async () => {
+      const baseUrl = 'https://v2.vexke.com/api';
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue('claude-relay-service');
+      vi.spyOn(cache, 'writeProviderDetectionCache').mockImplementation(() => {});
 
-      const provider1 = detectProvider('https://provider-a.com', customProviders);
-      const provider2 = detectProvider('https://provider-b.com', customProviders);
+      const provider = await resolveProvider(baseUrl, null, {}, 1500);
+      expect(provider).toBe('claude-relay-service');
+      expect(healthProbe.probeHealth).toHaveBeenCalledWith(baseUrl, 1500);
+      expect(cache.writeProviderDetectionCache).toHaveBeenCalledWith(
+        baseUrl,
+        expect.objectContaining({
+          provider: 'claude-relay-service',
+          detectedVia: 'health-probe',
+        })
+      );
+    });
 
-      expect(provider1).toBe('provider-a');
-      expect(provider2).toBe('provider-b');
+    it('should fall back to URL pattern when health probe fails', async () => {
+      const baseUrl = 'https://api.example.com/apiStats/api/user-stats';
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+      vi.spyOn(cache, 'writeProviderDetectionCache').mockImplementation(() => {});
+
+      const provider = await resolveProvider(baseUrl, null, {}, 1500);
+      expect(provider).toBe('claude-relay-service');
+      expect(cache.writeProviderDetectionCache).toHaveBeenCalledWith(
+        baseUrl,
+        expect.objectContaining({
+          provider: 'claude-relay-service',
+          detectedVia: 'url-pattern',
+        })
+      );
+    });
+
+    it('should default to sub2api when probe fails and no URL pattern matches', async () => {
+      const baseUrl = 'https://unknown.example.com';
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+      vi.spyOn(cache, 'writeProviderDetectionCache').mockImplementation(() => {});
+
+      const provider = await resolveProvider(baseUrl, null, {}, 1500);
+      expect(provider).toBe('sub2api');
+      expect(cache.writeProviderDetectionCache).toHaveBeenCalledWith(
+        baseUrl,
+        expect.objectContaining({
+          provider: 'sub2api',
+          detectedVia: 'url-pattern',
+        })
+      );
+    });
+
+    it('should use custom probe timeout', async () => {
+      const baseUrl = 'https://api.example.com';
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue('sub2api');
+
+      await resolveProvider(baseUrl, null, {}, 3000);
+      expect(healthProbe.probeHealth).toHaveBeenCalledWith(baseUrl, 3000);
     });
   });
 
-  describe('resolveProvider', () => {
-    it('should use explicit override when provided', () => {
-      const provider = resolveProvider(
-        'https://api.example.com',
-        'my-override',
-        {}
-      );
-      expect(provider).toBe('my-override');
-    });
+  describe('URL pattern detection', () => {
+    it('should detect claude-relay-service from apiStats URL', async () => {
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
 
-    it('should autodetect when no override', () => {
-      const provider = resolveProvider(
-        'https://relay.example.com',
-        null,
-        {}
-      );
+      const provider = await resolveProvider('https://api.example.com/apiStats/api/user-stats', null, {}, 1500);
       expect(provider).toBe('claude-relay-service');
     });
 
-    it('should cache detection results', () => {
-      const baseUrl = 'https://api.example.com';
+    it('should be case-insensitive', async () => {
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
 
-      // First call - detection
-      resolveProvider(baseUrl, null, {});
-      expect(getDetectionCacheSize()).toBe(1);
-
-      // Second call - should use cache
-      resolveProvider(baseUrl, null, {});
-      expect(getDetectionCacheSize()).toBe(1);
-    });
-
-    it('should cache different URLs separately', () => {
-      resolveProvider('https://api1.example.com', null, {});
-      resolveProvider('https://api2.example.com', null, {});
-
-      expect(getDetectionCacheSize()).toBe(2);
+      const provider1 = await resolveProvider('https://API.EXAMPLE.COM/APISTATS', null, {}, 1500);
+      const provider2 = await resolveProvider('https://api.example.com/apistats', null, {}, 1500);
+      expect(provider1).toBe('claude-relay-service');
+      expect(provider2).toBe('claude-relay-service');
     });
   });
 
   describe('cache management', () => {
-    it('should invalidate specific cache entry', () => {
+    it('should invalidate specific cache entry', async () => {
       const baseUrl1 = 'https://api1.example.com';
       const baseUrl2 = 'https://api2.example.com';
 
-      resolveProvider(baseUrl1, null, {});
-      resolveProvider(baseUrl2, null, {});
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+
+      await resolveProvider(baseUrl1, null, {}, 1500);
+      await resolveProvider(baseUrl2, null, {}, 1500);
       expect(getDetectionCacheSize()).toBe(2);
 
       invalidateDetectionCache(baseUrl1);
       expect(getDetectionCacheSize()).toBe(1);
 
       // baseUrl2 should still be cached
-      const provider = resolveProvider(baseUrl2, null, {});
+      const provider = await resolveProvider(baseUrl2, null, {}, 1500);
       expect(provider).toBe('sub2api');
       expect(getDetectionCacheSize()).toBe(1);
     });
 
-    it('should clear entire cache', () => {
-      resolveProvider('https://api1.example.com', null, {});
-      resolveProvider('https://api2.example.com', null, {});
+    it('should clear entire cache', async () => {
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
+
+      await resolveProvider('https://api1.example.com', null, {}, 1500);
+      await resolveProvider('https://api2.example.com', null, {}, 1500);
       expect(getDetectionCacheSize()).toBe(2);
 
       clearDetectionCache();
       expect(getDetectionCacheSize()).toBe(0);
     });
 
-    it('should re-detect after invalidation', () => {
+    it('should re-detect after invalidation', async () => {
       const baseUrl = 'https://api.example.com';
+      vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
+      vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
 
-      resolveProvider(baseUrl, null, {});
+      await resolveProvider(baseUrl, null, {}, 1500);
       expect(getDetectionCacheSize()).toBe(1);
 
       invalidateDetectionCache(baseUrl);
       expect(getDetectionCacheSize()).toBe(0);
 
-      resolveProvider(baseUrl, null, {});
-      expect(getDetectionCacheSize()).toBe(1);
-    });
-  });
-
-  describe('override behavior', () => {
-    it('should bypass cache when override is used', () => {
-      const baseUrl = 'https://api.example.com';
-
-      // Cache with autodetection
-      resolveProvider(baseUrl, null, {});
-      expect(getDetectionCacheSize()).toBe(1);
-
-      // Override should not affect cache
-      const provider = resolveProvider(baseUrl, 'my-override', {});
-      expect(provider).toBe('my-override');
+      await resolveProvider(baseUrl, null, {}, 1500);
       expect(getDetectionCacheSize()).toBe(1);
     });
   });

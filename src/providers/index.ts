@@ -75,18 +75,21 @@ export function getProvider(
  * @param baseUrl - ANTHROPIC_BASE_URL
  * @param providerOverride - CC_STATUSLINE_PROVIDER env override
  * @param customProviders - Custom provider configs
+ * @param probeTimeoutMs - Health probe timeout in milliseconds
  * @returns Provider adapter or null if not found
  */
-export function getProviderWithAutodetect(
+export async function getProviderWithAutodetect(
   baseUrl: string,
   providerOverride: string | null,
-  customProviders: Record<string, CustomProviderConfig> = {}
-): ProviderAdapter | null {
-  const providerId = resolveProvider(baseUrl, providerOverride, customProviders);
+  customProviders: Record<string, CustomProviderConfig> = {},
+  probeTimeoutMs: number = 1500
+): Promise<ProviderAdapter | null> {
+  const providerId = await resolveProvider(baseUrl, providerOverride, customProviders, probeTimeoutMs);
   return getProvider(providerId, customProviders);
 }
 
 // Re-export useful types and functions
 export { resolveProvider, invalidateDetectionCache, clearDetectionCache } from './autodetect.js';
 export { validateCustomProvider } from './custom.js';
+export { extractOrigin, probeHealth } from './health-probe.js';
 export type { CustomProviderConfig } from '../types/index.js';
