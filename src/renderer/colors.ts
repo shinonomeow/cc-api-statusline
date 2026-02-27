@@ -7,7 +7,7 @@
  * - Dynamic color aliases that resolve based on usage percentage
  */
 
-import type { Config, ColorAliasEntry } from '../types/config.js';
+import type { Config, ColorAliasEntry, ColorTieredEntry } from '../types/config.js';
 import type { TerminalCapabilities } from '../services/capabilities.js';
 
 /**
@@ -37,6 +37,18 @@ const ANSI_COLORS: Record<string, string> = {
 };
 
 /**
+ * Named theme colors (hex-based) for use in configs
+ * These resolve to hex colors and get rendered as truecolor ANSI
+ */
+const THEME_COLORS: Record<string, string> = {
+  cool: '#00D9FF',
+  comfortable: '#4ADE80',
+  warm: '#FDE047',
+  hot: '#FB923C',
+  critical: '#F87171',
+};
+
+/**
  * ANSI reset code
  */
 const ANSI_RESET = '\x1b[0m';
@@ -60,6 +72,12 @@ export function ansiColor(
   capabilities?: Pick<TerminalCapabilities, 'colorMode'>
 ): string {
   if (!color) return text;
+
+  // Theme color name — resolve to hex and recurse
+  const themeHex = THEME_COLORS[color.toLowerCase()];
+  if (themeHex) {
+    return ansiColor(text, themeHex, capabilities);
+  }
 
   // Named ANSI color (always 16-color codes — works in all modes)
   if (ANSI_COLORS[color.toLowerCase()]) {
@@ -271,12 +289,50 @@ export function resolveColor(
  * @param usagePercent - Usage percentage (0-100), or null for default "low" color
  * @returns Resolved color string
  */
+/**
+ * Type guard to check if alias is tiered entry
+ */
+function isTieredEntry(alias: ColorAliasEntry): alias is ColorTieredEntry {
+  return 'tiers' in alias;
+}
+
+/**
+ * Resolve tiered color based on usage percentage
+ */
+function resolveTieredColor(
+  entry: ColorTieredEntry,
+  usagePercent: number | null
+): string | null {
+  if (entry.tiers.length === 0) return null;
+
+  // No usage data → default to first tier
+  if (usagePercent === null) {
+    return entry.tiers[0]?.color ?? null;
+  }
+
+  // Find first tier where usage < maxPercent
+  for (const tier of entry.tiers) {
+    if (usagePercent < tier.maxPercent) {
+      return tier.color;
+    }
+  }
+
+  // If no tier matched (usage >= all maxPercents), return last tier
+  return entry.tiers[entry.tiers.length - 1]?.color ?? null;
+}
+
 function resolveColorAlias(
   alias: ColorAliasEntry | undefined,
   usagePercent: number | null
 ): string | null {
   if (!alias) return null;
 
+  // Check if it's a tiered entry first
+  if (isTieredEntry(alias)) {
+    return resolveTieredColor(alias, usagePercent);
+  }
+
+  // Legacy format (3-tier)
   // No usage data → default to "low" color
   if (usagePercent === null) {
     return alias.low;

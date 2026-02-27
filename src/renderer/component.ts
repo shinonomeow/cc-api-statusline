@@ -182,7 +182,7 @@ function renderQuotaComponent(
   const countdownColor = resolvePartColor('countdown', usagePercent, componentConfig, globalConfig);
 
   // Render progress indicator (bar/icon/hidden)
-  const progress = renderProgress(progressStyle, usagePercent, barSize, barStyle, barColor, null);
+  const progress = renderProgress(progressStyle, usagePercent, barSize, barStyle, barColor, null, renderContext);
 
   // Render value (percentage)
   const value = ansiColor(`${Math.round(usagePercent)}%`, valueColor, renderContext);
@@ -241,7 +241,7 @@ function renderBalanceComponent(
   // Render progress (skip for unlimited)
   const progress = isUnlimited
     ? ''
-    : renderProgress(progressStyle, effectivePercent ?? 0, barSize, barStyle, barColor, null);
+    : renderProgress(progressStyle, effectivePercent ?? 0, barSize, barStyle, barColor, null, renderContext);
 
   // Render value
   const valueText = isUnlimited ? '∞' : `$${balance.remaining.toFixed(2)}`;
@@ -326,7 +326,7 @@ function renderRateLimitComponent(
   // Render progress
   const progress =
     usagePercent !== null
-      ? renderProgress(progressStyle, usagePercent, barSize, barStyle, barColor, null)
+      ? renderProgress(progressStyle, usagePercent, barSize, barStyle, barColor, null, renderContext)
       : '';
 
   // Render value (requests used / limit)
@@ -473,13 +473,16 @@ function renderProgress(
   barSize: BarSize,
   barStyle: BarStyle,
   barColor: string | null,
-  emptyColor: string | null
+  emptyColor: string | null,
+  renderContext?: RenderContext
 ): string {
   switch (progressStyle) {
     case 'bar':
       return renderBar(usagePercent, barSize, barStyle, barColor, emptyColor);
-    case 'icon':
-      return getProgressIcon(usagePercent, true);
+    case 'icon': {
+      const icon = getProgressIcon(usagePercent, true);
+      return ansiColor(icon, barColor, renderContext);
+    }
     case 'hidden':
       return '';
     default:

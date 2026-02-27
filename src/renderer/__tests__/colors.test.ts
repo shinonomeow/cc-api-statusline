@@ -43,6 +43,39 @@ describe('ansiColor', () => {
   });
 });
 
+describe('ansiColor - theme colors', () => {
+  test('resolves "cool" theme color to truecolor ANSI', () => {
+    // cool = #00D9FF = rgb(0, 217, 255)
+    expect(ansiColor('text', 'cool')).toBe('\x1b[38;2;0;217;255mtext\x1b[0m');
+  });
+
+  test('resolves "comfortable" theme color to truecolor ANSI', () => {
+    // comfortable = #4ADE80 = rgb(74, 222, 128)
+    expect(ansiColor('text', 'comfortable')).toBe('\x1b[38;2;74;222;128mtext\x1b[0m');
+  });
+
+  test('resolves "warm" theme color to truecolor ANSI', () => {
+    // warm = #FDE047 = rgb(253, 224, 71)
+    expect(ansiColor('text', 'warm')).toBe('\x1b[38;2;253;224;71mtext\x1b[0m');
+  });
+
+  test('resolves "hot" theme color to truecolor ANSI', () => {
+    // hot = #FB923C = rgb(251, 146, 60)
+    expect(ansiColor('text', 'hot')).toBe('\x1b[38;2;251;146;60mtext\x1b[0m');
+  });
+
+  test('resolves "critical" theme color to truecolor ANSI', () => {
+    // critical = #F87171 = rgb(248, 113, 113)
+    expect(ansiColor('text', 'critical')).toBe('\x1b[38;2;248;113;113mtext\x1b[0m');
+  });
+
+  test('theme colors are case-insensitive', () => {
+    expect(ansiColor('text', 'Cool')).toBe('\x1b[38;2;0;217;255mtext\x1b[0m');
+    expect(ansiColor('text', 'CRITICAL')).toBe('\x1b[38;2;248;113;113mtext\x1b[0m');
+    expect(ansiColor('text', 'WaRm')).toBe('\x1b[38;2;253;224;71mtext\x1b[0m');
+  });
+});
+
 describe('hexToAnsi', () => {
   test('converts 6-digit hex to ANSI RGB', () => {
     expect(hexToAnsi('#ff5500')).toBe('\x1b[38;2;255;85;0m');
@@ -194,5 +227,143 @@ describe('resolveColor', () => {
       // Unknown alias should fall back to string "auto"
       expect(resolveColor('unknown-alias', 50, configWithStringAuto)).toBe('cyan');
     });
+  });
+});
+
+describe('resolveColor - tiered format', () => {
+  const tieredConfig: Config = {
+    ...DEFAULT_CONFIG,
+    colors: {
+      auto: {
+        tiers: [
+          { color: 'cool', maxPercent: 30 },
+          { color: 'comfortable', maxPercent: 65 },
+          { color: 'warm', maxPercent: 80 },
+          { color: 'hot', maxPercent: 90 },
+          { color: 'critical', maxPercent: 100 },
+        ],
+      },
+    },
+  };
+
+  test('resolves to first tier (cool) at 10%', () => {
+    expect(resolveColor('auto', 10, tieredConfig)).toBe('cool');
+  });
+
+  test('resolves to second tier (comfortable) at 40%', () => {
+    expect(resolveColor('auto', 40, tieredConfig)).toBe('comfortable');
+  });
+
+  test('resolves to third tier (warm) at 70%', () => {
+    expect(resolveColor('auto', 70, tieredConfig)).toBe('warm');
+  });
+
+  test('resolves to fourth tier (hot) at 85%', () => {
+    expect(resolveColor('auto', 85, tieredConfig)).toBe('hot');
+  });
+
+  test('resolves to fifth tier (critical) at 95%', () => {
+    expect(resolveColor('auto', 95, tieredConfig)).toBe('critical');
+  });
+
+  describe('boundary values', () => {
+    test('29% resolves to cool (< 30)', () => {
+      expect(resolveColor('auto', 29, tieredConfig)).toBe('cool');
+    });
+
+    test('30% resolves to comfortable (>= 30, < 65)', () => {
+      expect(resolveColor('auto', 30, tieredConfig)).toBe('comfortable');
+    });
+
+    test('64% resolves to comfortable (< 65)', () => {
+      expect(resolveColor('auto', 64, tieredConfig)).toBe('comfortable');
+    });
+
+    test('65% resolves to warm (>= 65, < 80)', () => {
+      expect(resolveColor('auto', 65, tieredConfig)).toBe('warm');
+    });
+
+    test('80% resolves to hot (>= 80, < 90)', () => {
+      expect(resolveColor('auto', 80, tieredConfig)).toBe('hot');
+    });
+
+    test('90% resolves to critical (>= 90)', () => {
+      expect(resolveColor('auto', 90, tieredConfig)).toBe('critical');
+    });
+
+    test('100% resolves to critical', () => {
+      expect(resolveColor('auto', 100, tieredConfig)).toBe('critical');
+    });
+  });
+
+  test('null usage returns first tier color', () => {
+    expect(resolveColor('auto', null, tieredConfig)).toBe('cool');
+  });
+
+  describe('edge cases', () => {
+    test('empty tiers array returns null', () => {
+      const emptyTiersConfig: Config = {
+        ...DEFAULT_CONFIG,
+        colors: {
+          auto: { tiers: [] },
+        },
+      };
+      expect(resolveColor('auto', 50, emptyTiersConfig)).toBeNull();
+    });
+
+    test('single tier always returns that color', () => {
+      const singleTierConfig: Config = {
+        ...DEFAULT_CONFIG,
+        colors: {
+          auto: { tiers: [{ color: 'cyan', maxPercent: 100 }] },
+        },
+      };
+      expect(resolveColor('auto', 0, singleTierConfig)).toBe('cyan');
+      expect(resolveColor('auto', 50, singleTierConfig)).toBe('cyan');
+      expect(resolveColor('auto', 100, singleTierConfig)).toBe('cyan');
+    });
+  });
+});
+
+describe('resolveColor - legacy backward compat', () => {
+  const legacyConfig: Config = {
+    ...DEFAULT_CONFIG,
+    colors: {
+      auto: {
+        low: 'green',
+        medium: 'yellow',
+        high: 'red',
+        lowThreshold: 50,
+        highThreshold: 80,
+      },
+      chill: {
+        low: 'cyan',
+        medium: 'blue',
+        high: 'magenta',
+        lowThreshold: 50,
+        highThreshold: 80,
+      },
+    },
+  };
+
+  test('legacy format still works for low usage', () => {
+    expect(resolveColor('auto', 0, legacyConfig)).toBe('green');
+    expect(resolveColor('auto', 49, legacyConfig)).toBe('green');
+  });
+
+  test('legacy format still works for medium usage', () => {
+    expect(resolveColor('auto', 50, legacyConfig)).toBe('yellow');
+    expect(resolveColor('auto', 79, legacyConfig)).toBe('yellow');
+  });
+
+  test('legacy format still works for high usage', () => {
+    expect(resolveColor('auto', 80, legacyConfig)).toBe('red');
+    expect(resolveColor('auto', 100, legacyConfig)).toBe('red');
+  });
+
+  test('legacy custom alias (chill) still works', () => {
+    expect(resolveColor('chill', 0, legacyConfig)).toBe('cyan');
+    expect(resolveColor('chill', 50, legacyConfig)).toBe('blue');
+    expect(resolveColor('chill', 80, legacyConfig)).toBe('magenta');
   });
 });

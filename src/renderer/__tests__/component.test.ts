@@ -160,6 +160,55 @@ describe('renderComponent - quota components', () => {
     });
   });
 
+  describe('renderComponent - icon color', () => {
+    const renderContext = { colorMode: 'truecolor' as const, nerdFontAvailable: true, isPiped: false };
+
+    test('icon at low usage gets color applied', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(10, 100), // 10% usage
+      });
+      const config: ComponentConfig = {
+        progressStyle: 'icon',
+        colors: { bar: '#4ADE80' } // explicit hex color
+      };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG, renderContext);
+      expect(result).toBeTruthy();
+      // Should have ANSI color codes around icon
+      // eslint-disable-next-line no-control-regex
+      expect(result).toMatch(/\x1b\[38;2;74;222;128m/); // #4ADE80 = rgb(74, 222, 128)
+    });
+
+    test('icon at high usage gets high-usage color', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(95, 100), // 95% usage
+      });
+      const config: ComponentConfig = {
+        progressStyle: 'icon',
+        colors: { bar: '#F87171' } // explicit hex color for high usage
+      };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG, renderContext);
+      expect(result).toBeTruthy();
+      // Should have ANSI color codes (critical tier color)
+      // eslint-disable-next-line no-control-regex
+      expect(result).toMatch(/\x1b\[38;2;248;113;113m/); // #F87171 = rgb(248, 113, 113)
+    });
+
+    test('icon with explicit hex color gets truecolor ANSI', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = {
+        progressStyle: 'icon',
+        colors: { bar: '#FF5500' }
+      };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG, renderContext);
+      expect(result).toBeTruthy();
+      // Should have specific hex color as truecolor ANSI
+      // eslint-disable-next-line no-control-regex
+      expect(result).toMatch(/\x1b\[38;2;255;85;0m/); // #FF5500 = rgb(255, 85, 0)
+    });
+  });
+
   describe('null handling', () => {
     test('returns null for missing daily data', () => {
       const data = createMockUsage({ daily: null });
@@ -491,13 +540,13 @@ describe('renderComponent - per-part coloring', () => {
     });
     const config: ComponentConfig = {
       colors: {
-        bar: 'auto', // Should resolve to red at 90%
+        bar: 'auto', // Should resolve to 'critical' theme color at 90%
       },
     };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     expect(result).toBeTruthy();
-    // Should contain red ANSI code (high usage)
-    expect(result).toContain('\x1b[31m'); // Red ANSI code
+    // Should contain critical color (5th tier: #F87171 = rgb(248, 113, 113))
+    expect(result).toContain('\x1b[38;2;248;113;113m'); // Truecolor ANSI for critical
   });
 });
 

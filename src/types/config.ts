@@ -102,15 +102,35 @@ export interface PartColors {
 }
 
 /**
- * Dynamic color alias entry
+ * Color tier for tiered color system
  */
-export interface ColorAliasEntry {
+export interface ColorTier {
+  color: string; // Color name, hex, or theme color
+  maxPercent: number; // Max percentage for this tier (exclusive upper bound)
+}
+
+/**
+ * Tiered color alias entry (5-tier format)
+ */
+export interface ColorTieredEntry {
+  tiers: ColorTier[];
+}
+
+/**
+ * Legacy color alias entry (3-tier format, backward compatible)
+ */
+export interface ColorLegacyEntry {
   low: string; // Color when usage < lowThreshold
   medium: string; // Color when usage < highThreshold
   high: string; // Color when usage >= highThreshold
   lowThreshold: number; // Default 50
   highThreshold: number; // Default 80
 }
+
+/**
+ * Dynamic color alias entry (supports both legacy and tiered formats)
+ */
+export type ColorAliasEntry = ColorLegacyEntry | ColorTieredEntry;
 
 /**
  * Color configuration
@@ -274,11 +294,13 @@ export const DEFAULT_CONFIG: Config = {
   },
   colors: {
     auto: {
-      low: 'green',
-      medium: 'yellow',
-      high: 'red',
-      lowThreshold: 50,
-      highThreshold: 80,
+      tiers: [
+        { color: 'cool', maxPercent: 30 },
+        { color: 'comfortable', maxPercent: 65 },
+        { color: 'warm', maxPercent: 80 },
+        { color: 'hot', maxPercent: 90 },
+        { color: 'critical', maxPercent: 100 },
+      ],
     },
     chill: {
       low: 'cyan',
