@@ -33,5 +33,11 @@ jobs:
       - name: Run tests and linting
         run: bun run check
 
+      - name: Upgrade npm to latest
+        run: npm install -g npm@latest
+
+      - name: Verify npm version
+        run: npm --version
+
       - name: Publish to npm with provenance
         run: npm publish --provenance --access public
