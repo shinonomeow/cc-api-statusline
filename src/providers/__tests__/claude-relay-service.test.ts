@@ -215,4 +215,77 @@ describe('claude-relay-service provider', () => {
       );
     });
   });
+
+  describe('countdown reset times', () => {
+    it('should provide resetsAt for daily quota', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      const result = await fetchClaudeRelayService('https://relay.example.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.daily).not.toBeNull();
+      expect(result.daily?.resetsAt).not.toBeNull();
+      expect(result.daily?.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+
+    it('should provide resetsAt for weekly quota with reset day/hour', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      const result = await fetchClaudeRelayService('https://relay.example.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.weekly).not.toBeNull();
+      expect(result.weekly?.resetsAt).not.toBeNull();
+      expect(result.weekly?.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+
+    it('should provide resetsAt for weekly quota without reset day/hour (fallback)', async () => {
+      const responseWithoutWeeklyReset = {
+        ...mockResponse,
+        data: {
+          ...mockResponse.data,
+          limits: {
+            ...mockResponse.data.limits,
+            weeklyResetDay: undefined,
+            weeklyResetHour: undefined,
+          },
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce(JSON.stringify(responseWithoutWeeklyReset));
+
+      const result = await fetchClaudeRelayService('https://relay.example.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.weekly).not.toBeNull();
+      expect(result.weekly?.resetsAt).not.toBeNull();
+      expect(result.weekly?.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+
+    it('should use windowEndTime for top-level resetsAt when available', async () => {
+      mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
+
+      const result = await fetchClaudeRelayService('https://relay.example.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.resetsAt).not.toBeNull();
+      expect(result.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+
+    it('should fallback to computeSoonestReset when windowEndTime is missing', async () => {
+      const responseWithoutWindowEndTime = {
+        ...mockResponse,
+        data: {
+          ...mockResponse.data,
+          limits: {
+            ...mockResponse.data.limits,
+            windowEndTime: null,
+          },
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce(JSON.stringify(responseWithoutWindowEndTime));
+
+      const result = await fetchClaudeRelayService('https://relay.example.com', 'test-token', DEFAULT_CONFIG);
+
+      expect(result.resetsAt).not.toBeNull();
+      expect(result.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    });
+  });
 });

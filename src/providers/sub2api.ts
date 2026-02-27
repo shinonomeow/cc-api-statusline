@@ -11,6 +11,11 @@ import { computeSoonestReset } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
 import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
+import {
+  computeNextMidnightLocal,
+  computeNextMondayLocal,
+  computeFirstOfNextMonthLocal,
+} from '../services/time.js';
 
 /**
  * sub2api API response shape (partial - only fields we use)
@@ -43,53 +48,6 @@ interface Sub2apiPeriodTokens {
   cache_read_tokens?: number;
   total_tokens?: number;
   cost?: number;
-}
-
-/**
- * Compute next midnight in local timezone
- */
-function computeNextMidnightLocal(): string {
-  const now = new Date();
-  const tomorrow = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + 1,
-    0, 0, 0, 0
-  );
-  return tomorrow.toISOString();
-}
-
-/**
- * Compute next Monday 00:00 in local timezone
- */
-function computeNextMondayLocal(): string {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-
-  // Days until next Monday
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
-
-  const nextMonday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate() + daysUntilMonday,
-    0, 0, 0, 0
-  );
-  return nextMonday.toISOString();
-}
-
-/**
- * Compute first of next month 00:00 in local timezone
- */
-function computeFirstOfNextMonthLocal(): string {
-  const now = new Date();
-  const nextMonth = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    1,
-    0, 0, 0, 0
-  );
-  return nextMonth.toISOString();
 }
 
 /**

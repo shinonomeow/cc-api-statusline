@@ -7,10 +7,15 @@
  */
 
 import type { NormalizedUsage, QuotaWindow, Config } from '../types/index.js';
+import { computeSoonestReset } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
 import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
 import { extractOrigin } from './health-probe.js';
+import {
+  computeNextMidnightLocal,
+  computeNextMondayLocal,
+} from '../services/time.js';
 
 /**
  * claude-relay-service API response shape
@@ -166,7 +171,7 @@ export async function fetchClaudeRelayService(
     result.daily = createQuotaWindow(
       limits.currentDailyCost,
       limits.dailyCostLimit,
-      null // Resets at midnight server TZ (not provided by API)
+      computeNextMidnightLocal()
     );
 
     // Weekly quota (Opus-only cost)
@@ -185,16 +190,18 @@ export async function fetchClaudeRelayService(
       result.weekly = createQuotaWindow(
         limits.weeklyOpusCost,
         limits.weeklyOpusCostLimit,
-        null
+        computeNextMondayLocal()
       );
     }
 
     // Monthly: not provided by relay
     result.monthly = null;
 
-    // resetsAt: use windowEndTime if available
+    // resetsAt: use windowEndTime if available, otherwise compute from quota windows
     if (limits.windowEndTime) {
       result.resetsAt = new Date(limits.windowEndTime).toISOString();
+    } else {
+      result.resetsAt = computeSoonestReset(result);
     }
 
     // Token stats (total only, no today)
