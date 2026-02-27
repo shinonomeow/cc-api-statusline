@@ -118,13 +118,25 @@ export async function fetchClaudeRelayService(
 
   const response = JSON.parse(responseText) as RelayResponse;
 
+    // Validate response shape
+    if (!response || typeof response !== 'object') {
+      throw new Error('Invalid response: expected object');
+    }
+
     // Check success wrapper
     if (!response.success) {
       throw new HttpError('Relay API returned success: false');
     }
 
     const data = response.data;
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response: missing data object');
+    }
+
     const limits = data.limits;
+    if (!limits || typeof limits !== 'object') {
+      throw new Error('Invalid response: missing limits object');
+    }
 
     // Create base using factory
     const base = createEmptyNormalizedUsage(

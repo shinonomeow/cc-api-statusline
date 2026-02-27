@@ -8,12 +8,11 @@
 
 import type { NormalizedUsage, PeriodTokens, Config } from '../types/index.js';
 import { computeSoonestReset, createEmptyNormalizedUsage } from '../types/index.js';
-import { secureFetch, HttpError } from './http.js';
+import { secureFetch } from './http.js';
 import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
 import { createQuotaWindow } from './quota-window.js';
 import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
-import { computeNextMidnightLocal } from '../services/time.js';
 
 /**
  * sub2api API response shape (partial - only fields we use)
@@ -82,8 +81,7 @@ export async function fetchSub2api(
     logger.debug(`Using User-Agent: ${resolvedUA}`);
   }
 
-  try {
-    const responseText = await secureFetch(
+  const responseText = await secureFetch(
       url,
       {
         method: 'GET',
@@ -97,6 +95,14 @@ export async function fetchSub2api(
     );
 
     const data = JSON.parse(responseText) as Sub2apiResponse;
+
+    // Validate response shape
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response: expected object');
+    }
+    if (typeof data.planName !== 'string' && data.planName !== undefined) {
+      throw new Error('Invalid response: planName must be string or undefined');
+    }
 
     // Detect billing mode
     const hasSubscription = !!data.subscription;
@@ -130,10 +136,12 @@ export async function fetchSub2api(
         throw new Error('Subscription mode but no subscription object in response');
       }
 
+      // Note: sub2api doesn't return explicit reset timestamps
+      // Setting resetsAt to null will trigger cost display fallback
       daily = createQuotaWindow(
         sub.daily_usage_usd,
         sub.daily_limit_usd,
-        computeNextMidnightLocal()
+        null
       );
 
       weekly = createQuotaWindow(
@@ -163,42 +171,14 @@ export async function fetchSub2api(
         }
       : null;
 
-    // Return immutable result
-    return {
-      ...base,
-      balance,
-      daily,
-      weekly,
-      monthly,
-      resetsAt,
-      tokenStats,
-    };
-  } catch (error: unknown) {
-    // Handle HTTP 429 - quota exhausted
-    if (error instanceof HttpError && error.statusCode === 429) {
-      // Return minimal structure with all remaining set to 0
-      return {
-        provider: 'sub2api',
-        billingMode: 'subscription',
-        planName: 'Quota Exhausted',
-        fetchedAt: new Date().toISOString(),
-        resetSemantics: 'end-of-day',
-        daily: {
-          used: 0,
-          limit: 0,
-          remaining: 0,
-          resetsAt: computeNextMidnightLocal(),
-        },
-        weekly: null,
-        monthly: null,
-        balance: null,
-        resetsAt: computeNextMidnightLocal(),
-        tokenStats: null,
-        rateLimit: null,
-      };
-    }
-
-    // Re-throw other errors (401/403 will be handled by polling engine)
-    throw error;
-  }
+  // Return immutable result
+  return {
+    ...base,
+    balance,
+    daily,
+    weekly,
+    monthly,
+    resetsAt,
+    tokenStats,
+  };
 }

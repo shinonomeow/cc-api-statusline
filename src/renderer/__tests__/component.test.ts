@@ -217,7 +217,7 @@ describe('renderComponent - quota components', () => {
       expect(plain).toContain(' · '); // Still uses divider
     });
 
-    test('time countdown takes priority over cost fallback', () => {
+    test('cost display takes priority over time countdown', () => {
       const resetsAt = new Date(Date.now() + 3600000).toISOString();
       const data = createMockUsage({
         weekly: {
@@ -229,8 +229,8 @@ describe('renderComponent - quota components', () => {
       });
       const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
-      // Should show time countdown, not cost
-      expect(plain).not.toContain('$156/$275');
+      // Should show cost display, not time countdown (new priority)
+      expect(plain).toContain('$156/$275');
       expect(plain).toMatch(/ · /); // Has divider
     });
 

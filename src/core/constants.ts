@@ -32,3 +32,22 @@ export const STALENESS_THRESHOLD_MINUTES = 5;
  * Cache age > 30min shows warning color
  */
 export const VERY_STALE_THRESHOLD_MINUTES = 30;
+
+/**
+ * Garbage collection constants
+ */
+
+/**
+ * Maximum age for cache files before deletion (7 days)
+ */
+export const GC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Maximum number of cache files to keep
+ */
+export const GC_MAX_CACHE_FILES = 20;
+
+/**
+ * Maximum age for orphaned .tmp files before deletion (1 hour)
+ */
+export const GC_ORPHAN_TMP_AGE_MS = 60 * 60 * 1000;

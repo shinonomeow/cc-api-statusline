@@ -12,7 +12,7 @@
 import type { ExecutionContext, ExecutionResult } from './types.js';
 import { isCacheValid, isCacheProviderValid, isCacheRenderedLineUsable, getEffectivePollInterval } from '../services/cache.js';
 import { renderStatusline } from '../renderer/index.js';
-import { renderError } from '../renderer/error.js';
+import { renderError, type ErrorState } from '../renderer/error.js';
 import type { CacheEntry } from '../types/index.js';
 import { CACHE_VERSION } from '../types/index.js';
 import { logger } from '../services/logger.js';
@@ -75,21 +75,14 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
 
   // Guard: insufficient time budget
   if (remainingBudget <= 50) {
-    // Path D: Fallback - use stale cache or loading message
-    logger.debug('Path D: Timeout fallback (insufficient budget)', { remainingBudget });
-    if (cachedEntry && cachedEntry.renderedLine) {
-      return {
-        output: cachedEntry.renderedLine,
-        exitCode: 0,
-        cacheUpdate: null,
-      };
-    } else {
-      return {
-        output: '[loading...]',
-        exitCode: 0,
-        cacheUpdate: null,
-      };
-    }
+    // Path D1: Timeout fallback - show error instead of stale data
+    logger.debug('Path D1: Timeout fallback', { remainingBudget });
+    const errorOutput = renderError('timeout', 'without-cache', providerId);
+    return {
+      output: errorOutput,
+      exitCode: 0,
+      cacheUpdate: null,
+    };
   }
 
   // Fetch from provider
@@ -140,24 +133,31 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
   } catch (error: unknown) {
     // Path D: Fetch error - use stale cache with error indicator or error message
     logger.error('Path D: Fetch error', { error: String(error), hasCachedEntry: !!cachedEntry });
-    if (cachedEntry) {
-      const ageMinutes = Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 60000);
-      const statusline = renderStatusline(cachedEntry.data, config, 'network-error', ageMinutes);
-      logger.debug('Using stale cache with error indicator', { ageMinutes });
-      return {
-        output: statusline,
-        exitCode: 0, // Changed from 1 - stale cache output is still useful
-        cacheUpdate: null,
-      };
-    } else {
-      // No cache available
-      logger.warn('No cache available for error fallback');
-      const errorOutput = renderError('network-error', 'without-cache', providerId);
-      return {
-        output: errorOutput,
-        exitCode: 0,
-        cacheUpdate: null,
-      };
+
+    // Determine error type from error object
+    let errorState: ErrorState = 'network-error';
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      const statusCode = (error as { statusCode?: number }).statusCode;
+      if (statusCode === 429) {
+        errorState = 'rate-limited';
+      } else if (statusCode && statusCode >= 500) {
+        errorState = 'server-error';
+      } else if (statusCode === 401 || statusCode === 403) {
+        errorState = 'auth-error';
+      }
     }
+
+    // Path D2: Fetch error - show error, discard stale cache
+    if (cachedEntry) {
+      logger.debug('Discarding stale cache, showing error', { errorState });
+    } else {
+      logger.warn('No cache available for error fallback');
+    }
+    const errorOutput = renderError(errorState, 'without-cache', providerId);
+    return {
+      output: errorOutput,
+      exitCode: 0,
+      cacheUpdate: null,
+    };
   }
 }

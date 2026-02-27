@@ -8,12 +8,13 @@
 import type { ParsedArgs } from './args.js';
 import type { ExecutionContext } from '../core/index.js';
 import { readCurrentEnv, validateRequiredEnv } from '../services/env.js';
-import { readCache, writeCache, computeConfigHash } from '../services/cache.js';
+import { readCache, writeCache, computeConfigHash, getCacheDir } from '../services/cache.js';
 import { loadConfig, getConfigPath } from '../services/config.js';
 import { resolveProvider, getProvider } from '../providers/index.js';
 import { renderError } from '../renderer/error.js';
 import { executeCycle } from '../core/index.js';
 import { logger } from '../services/logger.js';
+import { runCacheGC } from '../services/cache-gc.js';
 
 /**
  * Build execution context from arguments and environment
@@ -178,6 +179,9 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
   if (result.cacheUpdate) {
     writeCache(baseUrl, result.cacheUpdate);
     logger.debug('Cache written', { baseUrl });
+
+    // Run garbage collection after successful cache write
+    runCacheGC(getCacheDir());
   }
 
   logger.debug('=== cc-api-statusline execution completed ===');

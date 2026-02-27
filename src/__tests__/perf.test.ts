@@ -244,9 +244,9 @@ describe('Performance Tests (CLI with Node.js startup overhead)', () => {
 
       const elapsed = Date.now() - startTime;
 
-      // Should produce output (cached or fallback)
+      // Should produce output (timeout error)
       expect(stdout.length).toBeGreaterThan(0);
-      expect(stdout).toContain('[loading...]');
+      expect(stdout).toContain('Fetching'); // Timeout error message
       expect(exitCode).toBe(0);
 
       // Should complete quickly

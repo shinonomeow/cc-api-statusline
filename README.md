@@ -9,10 +9,11 @@ A high-performance TUI statusline tool that polls API usage data from Claude API
 - ⚡ **Fast piped mode** — <25ms warm cache, <100ms p95
 - 🎨 **Highly configurable** — Layouts, colors, bar styles, display modes
 - 🔌 **Provider autodetection** — Works with sub2api, claude-relay-service, custom providers
-- 💾 **Smart caching** — Disk cache with atomic writes, TTL validation
+- 💾 **Smart caching** — Disk cache with atomic writes, TTL validation, automatic garbage collection
 - 🎯 **Claude Code integration** — Auto-setup with `--install` command
 - 📊 **Multiple components** — Daily/weekly/monthly quotas, balance, tokens, rate limits
 - 🐛 **Debug logging** — Detailed execution logs for troubleshooting
+- 🔒 **Reliability** — No stale data display, race-condition-free writes, auto cache cleanup
 
 ## Installation
 
@@ -418,9 +419,16 @@ Cache validation:
 - Version match
 - Token hash match
 
+Cache garbage collection:
+- Automatic cleanup after successful cache writes
+- Deletes cache files older than 7 days
+- Maintains maximum of 20 cache files (deletes oldest)
+- Removes orphaned temporary files older than 1 hour
+- Best-effort operation (never blocks or throws)
+
 Exit code behavior:
-- Returns `0` when stale cache is shown with error indicators (output is still useful)
-- Returns `1` only when no data can be shown (prevents confusing `[Exit: 1]` in widgets)
+- Returns `0` for all error states (stale data is never shown, only error messages)
+- Ensures clean widget display without `[Exit: 1]` indicators
 
 ## Troubleshooting
 
@@ -541,6 +549,7 @@ bun run check
 │  - settings   │ ← settings.json   │  - autodetect   │
 │  - logger     │ ← debug logging   │  - quota-window │
 │  - atomic-write│← atomic writes   │  - custom-mapping│
+│  - cache-gc   │ ← auto cleanup    │                 │
 │  - ensure-dir │← dir creation     └────────┬────────┘
 └──────┬────────┘                            │
        │                                      │
@@ -568,11 +577,12 @@ bun run check
 
 ## Testing
 
-- **477 tests** across **30 test files**
+- **550 tests** across **34 test files**
 - Unit tests for all services, renderers, and shared utilities
 - Core execution path tests (A/B/C/D)
 - E2E smoke tests with isolated environments
 - Performance tests (p95 < 600ms verification)
+- Cache garbage collection tests
 - CI/CD via GitHub Actions
 
 Run: `bun run check`

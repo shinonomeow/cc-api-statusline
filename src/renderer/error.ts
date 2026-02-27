@@ -23,7 +23,8 @@ export type ErrorState =
   | 'switching-provider'
   | 'new-credentials'
   | 'new-endpoint'
-  | 'auth-error-waiting';
+  | 'auth-error-waiting'
+  | 'timeout';
 
 /**
  * Error rendering mode
@@ -107,11 +108,13 @@ function renderStandaloneError(
     case 'auth-error':
       return `${warningIcon} Auth error`;
     case 'rate-limited':
-      return `${warningIcon} Rate limited`;
+      return `${warningIcon} Usage limit reached`;
     case 'provider-unknown':
       return `${warningIcon} Unknown provider`;
     case 'missing-env':
       return `${warningIcon} Set ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN`;
+    case 'timeout':
+      return `${warningIcon} Fetching...`;
     case 'network-error':
     case 'server-error':
     case 'parse-error':
@@ -140,7 +143,9 @@ function renderErrorIndicator(errorState: ErrorState, cacheAge?: number): string
     case 'parse-error':
       return '[parse error]';
     case 'rate-limited':
-      return '[rate limited]';
+      return '[limit reached]';
+    case 'timeout':
+      return '[timeout]';
     default:
       return '[error]';
   }
@@ -206,6 +211,8 @@ function getDefaultMessage(errorState: ErrorState): string {
       return 'authentication failed';
     case 'rate-limited':
       return 'rate limited';
+    case 'timeout':
+      return 'fetching...';
     default:
       return 'error';
   }

@@ -273,7 +273,7 @@ describe('executeCycle', () => {
   });
 
   describe('Path D: Fallback scenarios', () => {
-    it('should return stale cache when time budget is insufficient', async () => {
+    it('should return timeout error when time budget is insufficient', async () => {
       const cachedEntry = createMockEntry({
         renderedLine: 'Stale but valid',
         fetchedAt: new Date(Date.now() - 60000).toISOString(), // Stale
@@ -293,14 +293,14 @@ describe('executeCycle', () => {
 
       const result = await executeCycle(ctx);
 
-      expect(result.output).toBe('Stale but valid');
+      expect(result.output).toContain('Fetching');
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).toBeNull();
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProvider.fetch).not.toHaveBeenCalled();
     });
 
-    it('should return loading message when time budget insufficient and no cache', async () => {
+    it('should return timeout error when time budget insufficient and no cache', async () => {
       const ctx: ExecutionContext = {
         env: baseEnv,
         config: baseConfig,
@@ -315,14 +315,14 @@ describe('executeCycle', () => {
 
       const result = await executeCycle(ctx);
 
-      expect(result.output).toBe('[loading...]');
+      expect(result.output).toContain('Fetching');
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).toBeNull();
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProvider.fetch).not.toHaveBeenCalled();
     });
 
-    it('should return stale cache with error when fetch fails', async () => {
+    it('should return error when fetch fails (discarding stale cache)', async () => {
       const cachedEntry = createMockEntry({
         renderedLine: 'Stale cache',
         fetchedAt: new Date(Date.now() - 60000).toISOString(), // Stale (60s ago)
@@ -346,7 +346,9 @@ describe('executeCycle', () => {
 
       const result = await executeCycle(ctx);
 
-      expect(result.exitCode).toBe(0); // Changed from 1 - stale cache output is still useful
+      expect(result.output).toContain('test-provider'); // Error message includes provider
+      expect(result.output).not.toBe('Stale cache'); // Not using stale cache anymore
+      expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).toBeNull();
       expect(mockFetch).toHaveBeenCalled();
     });

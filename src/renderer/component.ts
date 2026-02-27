@@ -514,11 +514,11 @@ function resolveEffectiveDisplayMode(
 }
 
 /**
- * Render secondary display (countdown or cost fallback)
- * Fallback chain:
+ * Render secondary display (cost-first priority)
+ * Priority chain:
  * 1. If countdownConfig is false → return ''
- * 2. If resetsAt is non-null → show time countdown
- * 3. If quota has limit → show cost fallback ($used/$limit)
+ * 2. Cost display ($used/$limit) - if limit is meaningful (> 0)
+ * 3. Countdown - if resetsAt is available and no cost data
  * 4. Otherwise → return ''
  */
 function renderSecondaryDisplay(
@@ -529,26 +529,27 @@ function renderSecondaryDisplay(
   clockFormat: ClockFormat,
   renderContext?: RenderContext
 ): string {
-  // Countdown/secondary display disabled
+  // Secondary display disabled
   if (countdownConfig === false) return '';
 
   // Default countdown config
   const config: CountdownConfig =
     typeof countdownConfig === 'object' ? countdownConfig : {};
 
-  // Priority 1: Real reset time available → show time countdown
-  if (resetsAt !== null) {
-    const countdown = renderCountdown(resetsAt, config, clockFormat);
-    return countdownColor ? ansiColor(countdown, countdownColor, renderContext) : countdown;
-  }
+  const divider = config.divider ?? ' · ';
+  const prefix = config.prefix ?? '';
 
-  // Priority 2: No reset time, but cost quota available → show cost
-  if (quota.limit !== null) {
-    const divider = config.divider ?? ' · ';
-    const prefix = config.prefix ?? '';
+  // Priority 1: Cost display (if limit is meaningful)
+  if (quota.limit !== null && quota.limit > 0) {
     const costDisplay = formatCurrencyQuota(quota.used, quota.limit);
     const display = `${prefix}${divider}${costDisplay}`;
     return countdownColor ? ansiColor(display, countdownColor, renderContext) : display;
+  }
+
+  // Priority 2: Countdown (only if no meaningful cost data)
+  if (resetsAt !== null) {
+    const countdown = renderCountdown(resetsAt, config, clockFormat);
+    return countdownColor ? ansiColor(countdown, countdownColor, renderContext) : countdown;
   }
 
   // Priority 3: Nothing available → hide
@@ -601,7 +602,15 @@ function assembleComponent(
  * Calculate usage percentage
  */
 function calculateUsagePercent(used: number, limit: number | null): number {
-  if (limit === null || limit === 0) return 0;
+  // Unlimited quota
+  if (limit === null) return 0;
+
+  // Exhausted quota (no allowance) - show as 100% used
+  // NOTE: With createQuotaWindow filtering, limit=0 should not reach here,
+  // but handle defensively
+  if (limit === 0) return 100;
+
+  // Normal case: calculate percentage
   return (used / limit) * 100;
 }
 

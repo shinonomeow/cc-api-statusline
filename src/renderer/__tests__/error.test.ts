@@ -19,7 +19,7 @@ describe('renderError', () => {
       const result = renderError('rate-limited', 'without-cache');
       const plain = stripAnsi(result);
       expect(plain).toContain('⚠');
-      expect(plain).toContain('Rate limited');
+      expect(plain).toContain('Usage limit reached');
     });
 
     test('renders provider unknown error', () => {
@@ -60,6 +60,13 @@ describe('renderError', () => {
       expect(plain).toContain('sub2api');
       expect(plain).toContain('invalid JSON');
     });
+
+    test('renders timeout error', () => {
+      const result = renderError('timeout', 'without-cache');
+      const plain = stripAnsi(result);
+      expect(plain).toContain('⚠');
+      expect(plain).toContain('Fetching');
+    });
   });
 
   describe('with-cache mode (indicators)', () => {
@@ -85,7 +92,13 @@ describe('renderError', () => {
     test('renders rate limited indicator', () => {
       const result = renderError('rate-limited', 'with-cache');
       const plain = stripAnsi(result);
-      expect(plain).toContain('[rate limited]');
+      expect(plain).toContain('[limit reached]');
+    });
+
+    test('renders timeout indicator', () => {
+      const result = renderError('timeout', 'with-cache');
+      const plain = stripAnsi(result);
+      expect(plain).toContain('[timeout]');
     });
   });
 

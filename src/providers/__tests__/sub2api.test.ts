@@ -159,20 +159,16 @@ describe('sub2api provider', () => {
   });
 
   describe('resetsAt behavior', () => {
-    it('daily resetsAt is computed midnight', async () => {
+    it('daily resetsAt is null (API does not provide explicit reset timestamps)', async () => {
       mockFetch.mockResolvedValueOnce(JSON.stringify(mockResponse));
 
       const result = await fetchSub2api('https://api.sub2api.com', 'test-token', DEFAULT_CONFIG);
 
       expect(result.daily).not.toBeNull();
       if (!result.daily) throw new Error('daily is null');
-      expect(result.daily.resetsAt).not.toBeNull();
-      if (!result.daily.resetsAt) throw new Error('resetsAt is null');
-      // Should be a valid ISO string for tomorrow at midnight
-      const resetTime = new Date(result.daily.resetsAt);
-      expect(resetTime.getHours()).toBe(0);
-      expect(resetTime.getMinutes()).toBe(0);
-      expect(resetTime.getSeconds()).toBe(0);
+      // sub2api API doesn't return explicit reset timestamps, so we return null
+      // This triggers cost display fallback in the renderer
+      expect(result.daily.resetsAt).toBeNull();
     });
 
     it('weekly resetsAt is null (no computed reset time)', async () => {

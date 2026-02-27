@@ -46,7 +46,8 @@ export function atomicWriteFile(
   opts: AtomicWriteOptions = {}
 ): void {
   const { mode = 0o600, ensureParentDir: ensureParent = false, appendNewline = false } = opts;
-  const tmpPath = `${filePath}.tmp`;
+  const nonce = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const tmpPath = `${filePath}.${nonce}.tmp`;
 
   try {
     // Ensure parent directory exists if requested

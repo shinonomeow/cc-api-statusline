@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, existsSync, rmSync, readFileSync, statSync, writeFileSync } from 'fs';
+import { mkdtempSync, existsSync, rmSync, readFileSync, statSync, writeFileSync, readdirSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { atomicWriteFile } from '../atomic-write.js';
@@ -106,8 +106,10 @@ describe('atomicWriteFile', () => {
       atomicWriteFile(filePath, 'content');
     }).toThrow();
 
-    // Temp file should not exist
-    expect(existsSync(`${filePath}.tmp`)).toBe(false);
+    // No .tmp files should remain in testDir
+    const files = readdirSync(testDir);
+    const tmpFiles = files.filter((f) => f.endsWith('.tmp'));
+    expect(tmpFiles).toHaveLength(0);
   });
 
   it('should throw descriptive error on failure', () => {
