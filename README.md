@@ -521,8 +521,15 @@ bun run check
 
 ```
 ┌─────────────┐
-│   main.ts   │ ← Entry point, CLI orchestration, install/uninstall
+│   main.ts   │ ← Thin router: parse args → dispatch
 └──────┬──────┘
+       │
+┌──────▼────────┐
+│    src/cli/   │ ← Argument parsing, install/uninstall, piped-mode
+│  - args.ts    │
+│  - commands.ts│
+│  - piped-mode │
+└──────┬────────┘
        │
        ├──────────────────────────────────────┐
        │                                      │
@@ -532,22 +539,27 @@ bun run check
 │  - cache      │                   │  - relay        │
 │  - config     │                   │  - custom       │
 │  - settings   │ ← settings.json   │  - autodetect   │
-│  - logger     │ ← debug logging   └────────┬────────┘
+│  - logger     │ ← debug logging   │  - quota-window │
+│  - atomic-write│← atomic writes   │  - custom-mapping│
+│  - ensure-dir │← dir creation     └────────┬────────┘
 └──────┬────────┘                            │
        │                                      │
        ├──────────────────────────────────────┘
        │
 ┌──────▼────────┐
+│  src/core/    │
 │ execute-cycle │ ← Unified execution (Path A/B/C/D)
+│  constants.ts │ ← Shared constants
 └──────┬────────┘
        │
 ┌──────▼────────┐
 │   renderer/   │
-│  - component  │ ← Per-component rendering
+│  - component  │ ← Per-component rendering (RenderContext)
 │  - bar        │ ← Progress bars
 │  - colors     │ ← ANSI color system
 │  - countdown  │ ← Time-to-reset
 │  - error      │ ← Error states
+│  - transition │ ← Transition state detection
 │  - icons      │ ← Nerd-font glyphs
 │  - truncate   │ ← Terminal width
 │  - index      │ ← Main pipeline
@@ -556,8 +568,8 @@ bun run check
 
 ## Testing
 
-- **356 tests** across **21 test files**
-- Unit tests for all services and renderers
+- **477 tests** across **30 test files**
+- Unit tests for all services, renderers, and shared utilities
 - Core execution path tests (A/B/C/D)
 - E2E smoke tests with isolated environments
 - Performance tests (p95 < 600ms verification)

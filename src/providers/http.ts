@@ -1,11 +1,15 @@
 /**
- * Secure HTTP fetch with guards
+ * HTTP fetch with process-safety guards
  *
- * Security features:
- * - HTTPS enforcement (with loopback exception)
- * - 1MB response cap (streaming read)
- * - Cross-domain redirect blocking
- * - Timeout support via AbortSignal
+ * Design rationale: These guards protect our process from misbehaving endpoints.
+ * HTTPS enforcement and redirect blocking were removed because Claude Code itself
+ * already sends the user's API token to ANTHROPIC_BASE_URL before cc-api-statusline
+ * runs — if a user configures a malicious/HTTP URL, the token is already gone.
+ * Our HTTPS/redirect guards closed the barn door after the horse was gone.
+ *
+ * Remaining guards:
+ *   1. 1MB response cap (prevents memory exhaustion from broken/malicious proxies)
+ *   2. Timeout support (prevents hanging on unresponsive servers)
  */
 
 /**
@@ -29,54 +33,10 @@ export class TimeoutError extends Error {
   }
 }
 
-export class RedirectError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RedirectError';
-  }
-}
-
 export class ResponseTooLargeError extends Error {
   constructor(message: string = 'Response body exceeds 1MB limit') {
     super(message);
     this.name = 'ResponseTooLargeError';
-  }
-}
-
-/**
- * Check if URL is HTTPS or loopback
- */
-function isSecureUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-
-    // Allow HTTPS
-    if (parsed.protocol === 'https:') {
-      return true;
-    }
-
-    // Allow HTTP only for localhost/127.0.0.1
-    if (parsed.protocol === 'http:') {
-      const hostname = parsed.hostname.toLowerCase();
-      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
-        return true;
-      }
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Extract hostname from URL
- */
-function getHostname(url: string): string | null {
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return null;
   }
 }
 
@@ -134,14 +94,14 @@ async function readBodyWithLimit(response: Response): Promise<string> {
 }
 
 /**
- * Secure fetch with guards
+ * Fetch with process-safety guards (1MB cap + timeout)
  *
  * @param url - Full URL to fetch
  * @param options - Fetch options (headers, method, body, etc.)
  * @param timeoutMs - Request timeout in milliseconds (default: 5000)
  * @param userAgent - Optional User-Agent header value
  * @returns Response text
- * @throws HttpError, TimeoutError, RedirectError, ResponseTooLargeError
+ * @throws HttpError, TimeoutError, ResponseTooLargeError
  */
 export async function secureFetch(
   url: string,
@@ -149,24 +109,13 @@ export async function secureFetch(
   timeoutMs: number = 5000,
   userAgent?: string | null
 ): Promise<string> {
-  // Security: Enforce HTTPS (with loopback exception)
-  if (!isSecureUrl(url)) {
-    throw new HttpError(`Insecure URL rejected (must be HTTPS or localhost): ${url}`);
-  }
-
-  // Get original hostname for redirect check
-  const originalHostname = getHostname(url);
-  if (!originalHostname) {
-    throw new HttpError(`Invalid URL: ${url}`);
-  }
-
   // Add timeout via AbortSignal
   const signal = AbortSignal.timeout(timeoutMs);
 
   // Build fetch options
   const fetchOptions: RequestInit = {
     ...options,
-    redirect: 'manual',
+    redirect: 'follow',
     signal,
   };
 
@@ -179,28 +128,7 @@ export async function secureFetch(
   }
 
   try {
-    // Fetch with manual redirect handling
     const response = await fetch(url, fetchOptions);
-
-    // Check for redirects
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('Location');
-
-      if (location) {
-        // Check if redirect goes to different host
-        const redirectHostname = getHostname(location);
-
-        if (redirectHostname && redirectHostname !== originalHostname) {
-          throw new RedirectError(
-            `Cross-domain redirect blocked: ${originalHostname} → ${redirectHostname}`
-          );
-        }
-
-        throw new RedirectError(`Redirect detected to: ${location}`);
-      }
-
-      throw new RedirectError('Redirect detected but Location header missing');
-    }
 
     // Check for HTTP errors
     if (!response.ok) {
@@ -229,7 +157,6 @@ export async function secureFetch(
     if (
       error instanceof HttpError ||
       error instanceof TimeoutError ||
-      error instanceof RedirectError ||
       error instanceof ResponseTooLargeError
     ) {
       throw error;

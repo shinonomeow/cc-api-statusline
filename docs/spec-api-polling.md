@@ -75,12 +75,10 @@ After `maxConsecutiveFailures` (default 5), polling pauses entirely for `pauseDu
 
 | Guard | Implementation | Rationale |
 |---|---|---|
-| **HTTPS validation** | Reject `ANTHROPIC_BASE_URL` if not `https://`, **unless host is `127.0.0.1` or `localhost`** (loopback exception) | Prevent credential leakage over plain HTTP; loopback addresses are safe — credentials never leave the machine |
 | **Max response size** | `resp.read(1_048_576)` — cap at 1 MB | Prevent memory exhaustion from broken/malicious proxies |
-| **Redirect blocking** | Block HTTP redirects to domains different from the original `ANTHROPIC_BASE_URL` host | Prevent token exfiltration via redirect to attacker-controlled server |
 | **Request timeout** | `requestTimeoutSeconds` (default 5s) per request | Prevent hanging on unresponsive servers |
 
-> Since cc-api-statusline works with arbitrary proxy URLs (not a fixed domain set), we validate protocol + block cross-domain redirects instead of maintaining a domain allowlist. This is a standard security pattern for preventing token exfiltration via untrusted endpoints.
+> **Why HTTPS enforcement and redirect blocking were removed**: Claude Code itself already sends the user's API token to `ANTHROPIC_BASE_URL` before cc-api-statusline ever runs. If a user configures a malicious or HTTP URL, the token is already gone. Our HTTPS/redirect guards were closing the barn door after the horse was gone. The remaining guards (response size cap and timeout) protect our own process from misbehaving endpoints, not the user's token.
 
 ---
 

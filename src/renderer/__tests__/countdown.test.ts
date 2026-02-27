@@ -216,7 +216,11 @@ describe('renderCountdown', () => {
     });
 
     test('formats noon absolute timestamps in 12h clock format', () => {
-      const noon = new Date('2026-02-27T12:00:00Z').toISOString();
+      // Use tomorrow at noon UTC so the timestamp is always in the future
+      const tomorrowNoon = new Date();
+      tomorrowNoon.setUTCDate(tomorrowNoon.getUTCDate() + 1);
+      tomorrowNoon.setUTCHours(12, 0, 0, 0);
+      const noon = tomorrowNoon.toISOString();
       const config: CountdownConfig = { format: 'time' };
       const result = renderCountdown(noon, config, '12h');
       expect(result).toMatch(/ · \w+( \d+)? \d{1,2}(:\d{2})?(am|pm)/);

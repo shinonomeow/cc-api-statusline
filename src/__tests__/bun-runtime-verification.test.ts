@@ -8,9 +8,8 @@ import { join } from 'path';
  *
  * This test suite verifies that Bun supports the required runtime features:
  * 1. fetch() with AbortSignal.timeout()
- * 2. fetch() with redirect: "manual"
- * 3. fs.renameSync() atomicity
- * 4. Crypto (Bun.CryptoHasher or Node crypto)
+ * 2. fs.renameSync() atomicity
+ * 3. Crypto (Bun.CryptoHasher or Node crypto)
  */
 
 describe('Bun Runtime Verification', () => {
@@ -35,44 +34,6 @@ describe('Bun Runtime Verification', () => {
 
       expect(signal.aborted).toBe(true);
     });
-  });
-
-  describe('fetch redirect: "manual" support', () => {
-    it('should support redirect: "manual" option', async () => {
-      // Test with a known redirect URL (httpbin.org/redirect-to)
-      // Using manual mode should return 3xx response instead of following
-      const url = 'http://httpbin.org/absolute-redirect/1';
-
-      try {
-        const response = await fetch(url, {
-          redirect: 'manual',
-          signal: AbortSignal.timeout(5000),
-        });
-
-        // Should get 3xx status code, not the final destination
-        expect(response.status).toBeGreaterThanOrEqual(300);
-        expect(response.status).toBeLessThan(400);
-
-        // Should have Location header
-        const location = response.headers.get('Location');
-        expect(location).toBeTruthy();
-      } catch (error: unknown) {
-        // Network errors are acceptable in test environments
-        // The important part is that the API accepts the option
-        if (error instanceof TypeError) {
-          // Bun/Node may surface network failures as TypeError("fetch failed")
-          // Treat those as acceptable transient network issues.
-          if (/fetch failed|network/i.test(error.message)) {
-            console.warn('Network error in redirect test (acceptable):', error);
-            return;
-          }
-          // Other TypeErrors might indicate unsupported options
-          throw error;
-        }
-        // Network errors are OK
-        console.warn('Network error in redirect test (acceptable):', error);
-      }
-    }, 10000);
   });
 
   describe('fs.renameSync atomicity', () => {

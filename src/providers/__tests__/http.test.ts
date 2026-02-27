@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   HttpError,
   TimeoutError,
-  RedirectError,
   ResponseTooLargeError,
 } from '../http.js';
 
@@ -35,15 +34,6 @@ describe('http service', () => {
       expect(error.message).toBe('Custom timeout');
     });
 
-    it('RedirectError should have correct properties', () => {
-      const error = new RedirectError('Redirect detected');
-
-      expect(error).toBeInstanceOf(Error);
-      expect(error).toBeInstanceOf(RedirectError);
-      expect(error.name).toBe('RedirectError');
-      expect(error.message).toBe('Redirect detected');
-    });
-
     it('ResponseTooLargeError should have correct properties', () => {
       const error = new ResponseTooLargeError('Too big');
 
@@ -51,36 +41,6 @@ describe('http service', () => {
       expect(error).toBeInstanceOf(ResponseTooLargeError);
       expect(error.name).toBe('ResponseTooLargeError');
       expect(error.message).toBe('Too big');
-    });
-  });
-
-  describe('URL security validation', () => {
-    it('should reject non-HTTPS URLs', async () => {
-      const { secureFetch } = await import('../http.js');
-
-      await expect(
-        secureFetch('http://example.com/test', {}, 100)
-      ).rejects.toThrow(HttpError);
-
-      await expect(
-        secureFetch('http://example.com/test', {}, 100)
-      ).rejects.toThrow(/Insecure URL rejected/);
-    });
-
-    it('should reject invalid URLs', async () => {
-      const { secureFetch } = await import('../http.js');
-
-      await expect(
-        secureFetch('not-a-url', {}, 100)
-      ).rejects.toThrow(HttpError);
-    });
-
-    it('should reject FTP URLs', async () => {
-      const { secureFetch } = await import('../http.js');
-
-      await expect(
-        secureFetch('ftp://example.com/file', {}, 100)
-      ).rejects.toThrow(HttpError);
     });
   });
 });
