@@ -46,49 +46,49 @@ interface Sub2apiPeriodTokens {
 }
 
 /**
- * Compute next midnight UTC
+ * Compute next midnight in local timezone
  */
-function computeNextMidnightUTC(): string {
+function computeNextMidnightLocal(): string {
   const now = new Date();
-  const tomorrow = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + 1,
+  const tomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
     0, 0, 0, 0
-  ));
+  );
   return tomorrow.toISOString();
 }
 
 /**
- * Compute next Monday 00:00 UTC
+ * Compute next Monday 00:00 in local timezone
  */
-function computeNextMondayUTC(): string {
+function computeNextMondayLocal(): string {
   const now = new Date();
-  const dayOfWeek = now.getUTCDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
   // Days until next Monday
   const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
 
-  const nextMonday = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + daysUntilMonday,
+  const nextMonday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + daysUntilMonday,
     0, 0, 0, 0
-  ));
+  );
   return nextMonday.toISOString();
 }
 
 /**
- * Compute first of next month 00:00 UTC
+ * Compute first of next month 00:00 in local timezone
  */
-function computeFirstOfNextMonthUTC(): string {
+function computeFirstOfNextMonthLocal(): string {
   const now = new Date();
-  const nextMonth = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth() + 1,
+  const nextMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
     1,
     0, 0, 0, 0
-  ));
+  );
   return nextMonth.toISOString();
 }
 
@@ -218,21 +218,21 @@ export async function fetchSub2api(
       result.daily = createQuotaWindow(
         sub.daily_usage_usd,
         sub.daily_limit_usd,
-        computeNextMidnightUTC()
+        computeNextMidnightLocal()
       );
 
       // Weekly quota
       result.weekly = createQuotaWindow(
         sub.weekly_usage_usd,
         sub.weekly_limit_usd,
-        computeNextMondayUTC()
+        computeNextMondayLocal()
       );
 
       // Monthly quota
       result.monthly = createQuotaWindow(
         sub.monthly_usage_usd,
         sub.monthly_limit_usd,
-        computeFirstOfNextMonthUTC()
+        computeFirstOfNextMonthLocal()
       );
 
       // Compute soonest reset
@@ -264,12 +264,12 @@ export async function fetchSub2api(
           used: 0,
           limit: 0,
           remaining: 0,
-          resetsAt: computeNextMidnightUTC(),
+          resetsAt: computeNextMidnightLocal(),
         },
         weekly: null,
         monthly: null,
         balance: null,
-        resetsAt: computeNextMidnightUTC(),
+        resetsAt: computeNextMidnightLocal(),
         tokenStats: null,
         rateLimit: null,
       };

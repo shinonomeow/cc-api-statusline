@@ -260,26 +260,43 @@ describe('renderStatusline', () => {
 
   describe('truncation', () => {
     test('truncates long output to terminal width', () => {
-      const data = createMockUsage({
-        daily: createQuotaWindow(24, 100),
-        weekly: createQuotaWindow(50, 200),
-        monthly: createQuotaWindow(800, 1000),
-        balance: { remaining: 42.5, initial: 100, unit: 'USD' },
-      });
+      // Mock terminal width to have predictable behavior
+      const originalColumns = process.stdout.columns;
+      process.stdout.columns = 50;
 
-      const config: Config = {
-        ...DEFAULT_CONFIG,
-        display: {
-          ...DEFAULT_CONFIG.display,
-          maxWidth: 30, // 30% of terminal width
-        },
-      };
+      try {
+        // Create multiple components so total is long
+        const data = createMockUsage({
+          daily: createQuotaWindow(24, 100),
+          weekly: createQuotaWindow(50, 200),
+          monthly: createQuotaWindow(800, 1000),
+        });
 
-      const result = renderStatusline(data, config);
-      const plain = stripAnsi(result);
+        const config: Config = {
+          ...DEFAULT_CONFIG,
+          display: {
+            ...DEFAULT_CONFIG.display,
+            maxWidth: 40, // 40% of 50 = 20 chars - force hard truncation
+            separator: ' | ',
+          },
+        };
 
-      // Should be truncated with ellipsis
-      expect(plain).toContain('…');
+        const result = renderStatusline(data, config);
+        const plain = stripAnsi(result);
+
+        // Total output would be much longer than 20 chars
+        // After component dropping and hard truncation, should have ellipsis
+        expect(plain).toContain('…');
+        expect(plain.length).toBeLessThanOrEqual(21); // maxWidth (20) + ellipsis
+      } finally {
+        // Restore original value
+        if (originalColumns !== undefined) {
+          process.stdout.columns = originalColumns;
+        } else {
+          // @ts-expect-error Deleting undefined property for test cleanup
+          delete process.stdout.columns;
+        }
+      }
     });
 
     test('does not truncate short output', () => {

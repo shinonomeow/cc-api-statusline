@@ -100,7 +100,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       // Should never happen after validation, but satisfy TypeScript
       return {
         output: renderError('missing-env', 'without-cache'),
-        exitCode: 1,
+        exitCode: 0,
         cacheUpdate: null,
       };
     }
@@ -128,6 +128,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       data,
       renderedLine: statusline,
       configHash,
+      errorState: null,
     };
 
     return {
@@ -153,7 +154,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       const errorOutput = renderError('network-error', 'without-cache', providerId);
       return {
         output: errorOutput,
-        exitCode: 1,
+        exitCode: 0,
         cacheUpdate: null,
       };
     }

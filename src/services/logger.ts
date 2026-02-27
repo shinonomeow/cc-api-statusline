@@ -48,10 +48,19 @@ class Logger {
   }
 
   /**
+   * Format local timestamp (YYYY-MM-DD HH:MM:SS.mmm)
+   */
+  private formatLocalTimestamp(): string {
+    const d = new Date();
+    const pad = (n: number, len = 2) => n.toString().padStart(len, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
+  }
+
+  /**
    * Format log entry with timestamp and level
    */
   private format(level: LogLevel, message: string, data?: unknown): string {
-    const timestamp = new Date().toISOString();
+    const timestamp = this.formatLocalTimestamp();
     const dataStr = data ? ` ${JSON.stringify(data)}` : '';
     return `[${timestamp}] [${level.toUpperCase()}] ${message}${dataStr}\n`;
   }

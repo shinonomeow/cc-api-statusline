@@ -247,6 +247,29 @@ describe('executeCycle', () => {
 
       expect(result.cacheUpdate?.ttlSeconds).toBe(60); // Should use env override
     });
+
+    it('should include errorState in cache entry', async () => {
+      const mockUsage = createMockUsage();
+      const mockFetch = vi.fn().mockResolvedValue(mockUsage);
+      const provider: ProviderAdapter = { fetch: mockFetch };
+
+      const ctx: ExecutionContext = {
+        env: baseEnv,
+        config: baseConfig,
+        configHash: 'config123',
+        cachedEntry: null,
+        providerId: 'test-provider',
+        provider,
+        timeoutBudgetMs: 1000,
+        startTime: Date.now(),
+        fetchTimeoutMs: 800,
+      };
+
+      const result = await executeCycle(ctx);
+
+      expect(result.cacheUpdate).not.toBeNull();
+      expect(result.cacheUpdate?.errorState).toBe(null);
+    });
   });
 
   describe('Path D: Fallback scenarios', () => {
@@ -346,7 +369,7 @@ describe('executeCycle', () => {
 
       const result = await executeCycle(ctx);
 
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(0);
       expect(result.output).toContain('test-provider'); // Error message includes provider
       expect(result.cacheUpdate).toBeNull();
       expect(mockFetch).toHaveBeenCalled();

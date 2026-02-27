@@ -221,7 +221,7 @@ export const DEFAULT_CONFIG: Config = {
     barSize: 'medium',
     barStyle: 'classic',
     separator: ' | ',
-    maxWidth: 80,
+    maxWidth: 100,
     clockFormat: '24h',
   },
   components: {

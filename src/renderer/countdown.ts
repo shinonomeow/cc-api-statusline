@@ -47,15 +47,15 @@ export function renderCountdown(
   let timeStr: string;
 
   if (format === 'auto') {
-    // Auto: > 24h → date, ≤ 24h → duration, < 60s → "now"
+    // Auto: > 7d → date only, ≤ 7d → duration, < 60s → "now"
     if (remainingMs < 60000) {
       timeStr = 'now';
-    } else if (remainingMs <= 86400000) {
-      // ≤ 24h → duration
+    } else if (remainingMs <= 604800000) {
+      // ≤ 7 days (604800000ms) → duration
       timeStr = formatDuration(remainingMs);
     } else {
-      // > 24h → date
-      timeStr = formatWallClock(resetDate, clockFormat);
+      // > 7 days → date only (no time, saves space and cleaner)
+      timeStr = formatDateOnly(resetDate);
     }
   } else if (format === 'duration') {
     // Duration: always show remaining time
@@ -76,9 +76,9 @@ export function renderCountdown(
  * Format duration as human-readable string
  *
  * Rules:
- * - ≥ 1 day → "Xd Yh"
- * - ≥ 1 hour → "XhYm"
- * - < 1 hour → "Xm"
+ * - ≥ 1 day → "Xd Yh" (e.g., "5d 12h")
+ * - ≥ 1 hour → "Xh Ym" (e.g., "23h 31m")
+ * - < 1 hour → "Xm" (e.g., "45m")
  * - < 60s → "now"
  *
  * @param ms - Milliseconds remaining
@@ -95,9 +95,45 @@ function formatDuration(ms: number): string {
     return `${days}d ${remainingHours}h`;
   } else if (hours >= 1) {
     const remainingMinutes = minutes % 60;
-    return `${hours}h${remainingMinutes}m`;
+    return `${hours}h ${remainingMinutes}m`;
   } else {
     return `${minutes}m`;
+  }
+}
+
+/**
+ * Format date only (no time)
+ *
+ * Rules:
+ * - Same month → "Mon 28"
+ * - Different month → "Mar 5"
+ *
+ * Used in auto mode for > 7 days to save space
+ *
+ * @param date - Target date
+ * @returns Formatted date string
+ */
+function formatDateOnly(date: Date): string {
+  const now = new Date();
+
+  // Get day of week abbreviation
+  const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' });
+
+  // Get month abbreviation
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+
+  // Get day of month
+  const dayOfMonth = date.getDate();
+
+  // Check if same month
+  const isSameMonth = date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+
+  if (isSameMonth) {
+    // Same month → "Mon 28"
+    return `${dayOfWeek} ${dayOfMonth}`;
+  } else {
+    // Different month → "Mar 5"
+    return `${month} ${dayOfMonth}`;
   }
 }
 

@@ -9,7 +9,7 @@
  * Get terminal width
  *
  * In piped mode (ccstatusline uses execSync with stdio: ['pipe', 'pipe', 'ignore']),
- * process.stdout.columns is unreliable (often undefined). Fall back to 80 chars.
+ * process.stdout.columns is unreliable (often undefined). Fall back to 200 chars.
  *
  * In standalone mode, process.stdout.columns is authoritative.
  *
@@ -20,8 +20,16 @@ export function getTerminalWidth(): number {
   if (process.stdout.columns && process.stdout.columns > 0) {
     return process.stdout.columns;
   }
-  // Piped mode fallback: conservative default
-  return 80;
+  // Check for CC_STATUSLINE_COLS override
+  const colsOverride = process.env['CC_STATUSLINE_COLS'];
+  if (colsOverride) {
+    const parsed = parseInt(colsOverride, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  // Piped mode fallback: generous default for modern terminals
+  return 200;
 }
 
 /**

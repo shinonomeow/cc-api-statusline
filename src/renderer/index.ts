@@ -14,6 +14,8 @@ import {
   getTerminalWidth,
   computeMaxWidth,
   ansiAwareTruncate,
+  visibleLength,
+  COMPONENT_DROP_PRIORITY,
 } from './truncate.js';
 
 /**
@@ -47,8 +49,8 @@ export function renderStatusline(
   // Determine component render order
   const componentOrder = getComponentOrder(config);
 
-  // Render each enabled component
-  const renderedComponents: string[] = [];
+  // Render each enabled component into a map
+  const componentMap = new Map<ComponentId, string>();
   for (const componentId of componentOrder) {
     const componentConfig = config.components[componentId];
 
@@ -66,14 +68,61 @@ export function renderStatusline(
       config
     );
 
-    // Skip null results (missing data)
+    // Store non-null results in map
     if (rendered !== null) {
-      renderedComponents.push(rendered);
+      componentMap.set(componentId, rendered);
+    }
+  }
+
+  // Get target width
+  const termWidth = getTerminalWidth();
+  const maxWidth = computeMaxWidth(termWidth, config.display.maxWidth ?? 100);
+  const separator = config.display.separator ?? ' | ';
+
+  // Intelligent component dropping
+  // Start with all components and drop lowest-priority ones until we fit
+  const activeComponents = new Set(componentMap.keys());
+
+  // Calculate current width
+  let currentWidth = calculateStatuslineWidth(componentMap, activeComponents, componentOrder, separator, errorState, data, cacheAge);
+
+  // Drop components in priority order until we fit (or run out of components to drop)
+  // Keep at least one component (don't drop everything)
+  for (const dropCandidate of COMPONENT_DROP_PRIORITY) {
+    // Skip 'countdown' - it's a sub-component, not a top-level component
+    if (dropCandidate === 'countdown') {
+      continue;
+    }
+
+    // If we fit within maxWidth, stop dropping
+    if (currentWidth <= maxWidth) {
+      break;
+    }
+
+    // Don't drop if it's the last component
+    if (activeComponents.size <= 1) {
+      break;
+    }
+
+    // Drop this component if it exists
+    if (activeComponents.has(dropCandidate as ComponentId)) {
+      activeComponents.delete(dropCandidate as ComponentId);
+      currentWidth = calculateStatuslineWidth(componentMap, activeComponents, componentOrder, separator, errorState, data, cacheAge);
+    }
+  }
+
+  // Build final component list in original order
+  const renderedComponents: string[] = [];
+  for (const componentId of componentOrder) {
+    if (activeComponents.has(componentId)) {
+      const rendered = componentMap.get(componentId);
+      if (rendered) {
+        renderedComponents.push(rendered);
+      }
     }
   }
 
   // Join components with separator
-  const separator = config.display.separator ?? ' | ';
   let statusline = renderedComponents.join(separator);
 
   // Append error indicator if present
@@ -110,12 +159,61 @@ export function renderStatusline(
     }
   }
 
-  // Apply truncation
-  const termWidth = getTerminalWidth();
-  const maxWidth = computeMaxWidth(termWidth, config.display.maxWidth ?? 80);
+  // Apply hard truncation as safety net
   statusline = ansiAwareTruncate(statusline, maxWidth);
 
   return statusline;
+}
+
+/**
+ * Calculate total visible width of statusline with given components
+ */
+function calculateStatuslineWidth(
+  componentMap: Map<ComponentId, string>,
+  activeComponents: Set<ComponentId>,
+  componentOrder: ComponentId[],
+  separator: string,
+  errorState: ErrorState | undefined,
+  data: NormalizedUsage,
+  cacheAge: number | undefined
+): number {
+  // Join active components in the correct order
+  const components: string[] = [];
+  for (const id of componentOrder) {
+    if (activeComponents.has(id)) {
+      const rendered = componentMap.get(id);
+      if (rendered) {
+        components.push(rendered);
+      }
+    }
+  }
+
+  let statusline = components.join(separator);
+
+  // Add error indicator length if present
+  if (errorState) {
+    const isTransition =
+      errorState === 'switching-provider' ||
+      errorState === 'new-credentials' ||
+      errorState === 'new-endpoint' ||
+      errorState === 'auth-error-waiting';
+
+    if (isTransition) {
+      statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
+    } else {
+      const hasCache = components.length > 0;
+      const errorMode = hasCache ? 'with-cache' : 'without-cache';
+      const errorIndicator = renderError(errorState, errorMode, data.provider, undefined, cacheAge);
+
+      if (hasCache) {
+        statusline = `${statusline} ${errorIndicator}`;
+      } else {
+        statusline = errorIndicator;
+      }
+    }
+  }
+
+  return visibleLength(statusline);
 }
 
 /**

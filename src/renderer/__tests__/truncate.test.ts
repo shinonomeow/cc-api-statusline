@@ -13,9 +13,11 @@ import {
 
 describe('getTerminalWidth', () => {
   let originalColumns: number | undefined;
+  let originalColsEnv: string | undefined;
 
   beforeEach(() => {
     originalColumns = process.stdout.columns;
+    originalColsEnv = process.env['CC_STATUSLINE_COLS'];
   });
 
   afterEach(() => {
@@ -26,6 +28,12 @@ describe('getTerminalWidth', () => {
       // @ts-expect-error - deleting for test cleanup
       delete process.stdout.columns;
     }
+    // Restore env var
+    if (originalColsEnv !== undefined) {
+      process.env['CC_STATUSLINE_COLS'] = originalColsEnv;
+    } else {
+      delete process.env['CC_STATUSLINE_COLS'];
+    }
   });
 
   test('returns process.stdout.columns when defined', () => {
@@ -33,20 +41,47 @@ describe('getTerminalWidth', () => {
     expect(getTerminalWidth()).toBe(120);
   });
 
-  test('returns 80 when columns is undefined (piped mode)', () => {
+  test('returns 200 when columns is undefined (piped mode)', () => {
     // @ts-expect-error - simulating piped mode
     delete process.stdout.columns;
-    expect(getTerminalWidth()).toBe(80);
+    expect(getTerminalWidth()).toBe(200);
   });
 
-  test('returns 80 when columns is 0', () => {
+  test('returns 200 when columns is 0', () => {
     process.stdout.columns = 0;
-    expect(getTerminalWidth()).toBe(80);
+    expect(getTerminalWidth()).toBe(200);
   });
 
-  test('returns 80 when columns is negative', () => {
+  test('returns 200 when columns is negative', () => {
     process.stdout.columns = -1;
-    expect(getTerminalWidth()).toBe(80);
+    expect(getTerminalWidth()).toBe(200);
+  });
+
+  test('respects CC_STATUSLINE_COLS env var when columns is undefined', () => {
+    // @ts-expect-error - simulating piped mode
+    delete process.stdout.columns;
+    process.env['CC_STATUSLINE_COLS'] = '150';
+    expect(getTerminalWidth()).toBe(150);
+  });
+
+  test('ignores invalid CC_STATUSLINE_COLS values', () => {
+    // @ts-expect-error - simulating piped mode
+    delete process.stdout.columns;
+    process.env['CC_STATUSLINE_COLS'] = 'invalid';
+    expect(getTerminalWidth()).toBe(200);
+  });
+
+  test('ignores negative CC_STATUSLINE_COLS values', () => {
+    // @ts-expect-error - simulating piped mode
+    delete process.stdout.columns;
+    process.env['CC_STATUSLINE_COLS'] = '-50';
+    expect(getTerminalWidth()).toBe(200);
+  });
+
+  test('prioritizes process.stdout.columns over CC_STATUSLINE_COLS', () => {
+    process.stdout.columns = 100;
+    process.env['CC_STATUSLINE_COLS'] = '150';
+    expect(getTerminalWidth()).toBe(100);
   });
 });
 
@@ -179,7 +214,7 @@ describe('ansiAwareTruncate', () => {
 
   test('handles complex statusline output', () => {
     const text =
-      '\x1b[2mDaily\x1b[0m \x1b[32m━━━━━━━━\x1b[0m \x1b[32m24%\x1b[0m\x1b[2m·3h12m\x1b[0m | \x1b[2mWeekly\x1b[0m \x1b[32m●●○○○○\x1b[0m \x1b[32m22%\x1b[0m\x1b[2m·5d3h\x1b[0m';
+      '\x1b[2mDaily\x1b[0m \x1b[32m━━━━━━━━\x1b[0m \x1b[32m24%\x1b[0m\x1b[2m·3h 12m\x1b[0m | \x1b[2mWeekly\x1b[0m \x1b[32m●●○○○○\x1b[0m \x1b[32m22%\x1b[0m\x1b[2m·5d 3h\x1b[0m';
     const truncated = ansiAwareTruncate(text, 40);
     expect(visibleLength(truncated)).toBe(40);
     // Should preserve ANSI codes

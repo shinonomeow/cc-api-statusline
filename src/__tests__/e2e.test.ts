@@ -88,7 +88,7 @@ describe('E2E - CLI Smoke Tests', () => {
 
   test('CLI handles missing env vars gracefully', () => {
     const result = runCli(['--once'], baseEnv({}));
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(0);
     expect(result.stdout).toContain('⚠');
   });
 

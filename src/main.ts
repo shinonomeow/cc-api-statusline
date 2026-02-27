@@ -224,7 +224,7 @@ async function main(): Promise<void> {
   if (envError) {
     const errorOutput = renderError('missing-env', 'without-cache');
     process.stdout.write(errorOutput);
-    process.exit(1);
+    process.exit(0);
   }
 
   const baseUrl = env.baseUrl;
@@ -254,7 +254,7 @@ async function main(): Promise<void> {
     logger.error('Provider not found', { providerId });
     const errorOutput = renderError('provider-unknown', 'without-cache');
     process.stdout.write(errorOutput);
-    process.exit(1);
+    process.exit(0);
   }
 
   // Read cache
@@ -298,16 +298,23 @@ async function main(): Promise<void> {
     cacheUpdate: !!result.cacheUpdate
   });
 
+  // Guard against empty output
+  let output = result.output;
+  if (!output || output.trim().length === 0) {
+    output = '[loading...]';
+    logger.debug('Empty output detected, using fallback');
+  }
+
   // Apply side effects
   // In piped mode (Claude Code widget), apply host-specific formatting:
   // 1. Prepend \x1b[0m to reset Claude Code's dim styling
   // 2. Replace spaces with NBSP (\u00A0) to prevent VSCode trimming
   if (isPiped) {
-    const formatted = '\x1b[0m' + result.output.replace(/ /g, '\u00A0');
+    const formatted = '\x1b[0m' + output.replace(/ /g, '\u00A0');
     process.stdout.write(formatted);
     logger.debug('Output formatted for piped mode (ANSI reset + NBSP)');
   } else {
-    process.stdout.write(result.output);
+    process.stdout.write(output);
     logger.debug('Output written (TTY mode)');
   }
 
