@@ -6,6 +6,8 @@
  */
 
 import { dimText, ansiColor } from './colors.js';
+import { STALENESS_THRESHOLD_MINUTES, VERY_STALE_THRESHOLD_MINUTES } from '../core/constants.js';
+import { isTransitionState } from './transition.js';
 
 /**
  * Error state type
@@ -50,14 +52,8 @@ export function renderError(
   message?: string,
   cacheAge?: number
 ): string {
-  const isTransition =
-    errorState === 'switching-provider' ||
-    errorState === 'new-credentials' ||
-    errorState === 'new-endpoint' ||
-    errorState === 'auth-error-waiting';
-
   // Transition states always replace output (even with cache)
-  if (isTransition) {
+  if (isTransitionState(errorState)) {
     return renderTransitionState(errorState);
   }
 
@@ -167,18 +163,18 @@ function renderStalenessIndicator(label: string, cacheAge?: number, showAge = tr
 
   // Build indicator text
   let text = label;
-  if (showAge && cacheAge >= 5) {
+  if (showAge && cacheAge >= STALENESS_THRESHOLD_MINUTES) {
     text = `[stale ${cacheAge}m]`;
   }
 
   // Apply styling based on staleness level
   switch (stalenessLevel) {
     case 'fresh':
-      return dimText(label); // < 5min, show label without age, dimmed
+      return dimText(label); // < threshold, show label without age, dimmed
     case 'stale':
-      return dimText(text); // 5-30min, dim with age
+      return dimText(text); // threshold - very stale, dim with age
     case 'very-stale':
-      return ansiColor(text, 'yellow'); // > 30min, warning color with age
+      return ansiColor(text, 'yellow'); // > very stale, warning color with age
   }
 }
 
@@ -186,9 +182,9 @@ function renderStalenessIndicator(label: string, cacheAge?: number, showAge = tr
  * Determine staleness level from cache age
  */
 function getStalenessLevel(ageMinutes: number): StalenessLevel {
-  if (ageMinutes < 5) {
+  if (ageMinutes < STALENESS_THRESHOLD_MINUTES) {
     return 'fresh';
-  } else if (ageMinutes <= 30) {
+  } else if (ageMinutes <= VERY_STALE_THRESHOLD_MINUTES) {
     return 'stale';
   } else {
     return 'very-stale';

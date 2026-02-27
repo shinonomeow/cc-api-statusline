@@ -4,11 +4,13 @@
  * Load/save/merge JSON config, defaults, validation
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, unlinkSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import type { Config } from '../types/index.js';
 import { DEFAULT_CONFIG } from '../types/index.js';
+import { ensureDir } from './ensure-dir.js';
+import { atomicWriteFile } from './atomic-write.js';
 
 /**
  * Get config directory path
@@ -32,9 +34,7 @@ export function getConfigPath(customPath?: string): string {
  */
 export function ensureConfigDir(): void {
   const dir = getConfigDir();
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
-  }
+  ensureDir(dir);
 }
 
 /**
@@ -68,32 +68,44 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial
 }
 
 /**
- * Validate and clamp config values
+ * Validate and clamp config values (immutable)
  */
 function validateConfig(config: Config): Config {
+  let maxWidth = config.display.maxWidth;
+  let pollIntervalSeconds = config.pollIntervalSeconds;
+  let pipedRequestTimeoutMs = config.pipedRequestTimeoutMs;
+
   // Clamp maxWidth to 20-100
-  if (config.display.maxWidth < 20) {
+  if (maxWidth < 20) {
     console.warn('Warning: display.maxWidth < 20, clamping to 20');
-    config.display.maxWidth = 20;
+    maxWidth = 20;
   }
-  if (config.display.maxWidth > 100) {
+  if (maxWidth > 100) {
     console.warn('Warning: display.maxWidth > 100, clamping to 100');
-    config.display.maxWidth = 100;
+    maxWidth = 100;
   }
 
   // Validate pollIntervalSeconds >= 5
-  if (config.pollIntervalSeconds !== undefined && config.pollIntervalSeconds < 5) {
+  if (pollIntervalSeconds !== undefined && pollIntervalSeconds < 5) {
     console.warn('Warning: pollIntervalSeconds < 5, clamping to 5');
-    config.pollIntervalSeconds = 5;
+    pollIntervalSeconds = 5;
   }
 
   // Validate pipedRequestTimeoutMs
-  if (config.pipedRequestTimeoutMs !== undefined && config.pipedRequestTimeoutMs < 100) {
+  if (pipedRequestTimeoutMs !== undefined && pipedRequestTimeoutMs < 100) {
     console.warn('Warning: pipedRequestTimeoutMs < 100, clamping to 100');
-    config.pipedRequestTimeoutMs = 100;
+    pipedRequestTimeoutMs = 100;
   }
 
-  return config;
+  return {
+    ...config,
+    display: {
+      ...config.display,
+      maxWidth,
+    },
+    pollIntervalSeconds,
+    pipedRequestTimeoutMs,
+  };
 }
 
 /**
@@ -137,21 +149,12 @@ export function saveConfig(config: Config, configPath?: string): void {
   // Ensure directory exists
   ensureConfigDir();
 
-  // Write to temp file
-  const tmpPath = `${path}.tmp`;
+  // Write atomically
   const content = JSON.stringify(config, null, 2);
 
   try {
-    writeFileSync(tmpPath, content, { encoding: 'utf-8', mode: 0o600 });
-
-    // Atomic rename
-    renameSync(tmpPath, path);
+    atomicWriteFile(path, content);
   } catch (error: unknown) {
-    // Cleanup temp file on error
-    if (existsSync(tmpPath)) {
-      unlinkSync(tmpPath);
-    }
-
     throw new Error(`Failed to save config: ${error}`);
   }
 }

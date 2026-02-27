@@ -12,14 +12,19 @@ import type { NormalizedUsage } from './normalized-usage.js';
 export const CACHE_VERSION = 1;
 
 /**
- * Error state for polling engine
+ * Error state for polling engine (cache)
  */
-export interface ErrorState {
+export interface CacheErrorState {
   code: 'auth' | 'network' | 'timeout' | 'quota' | 'unknown';
   message: string;
   timestamp: string; // ISO-8601 UTC
   retryCount: number;
 }
+
+/**
+ * Backward-compatible alias for external type consumers.
+ */
+export type ErrorState = CacheErrorState;
 
 /**
  * Cache entry stored on disk
@@ -44,7 +49,7 @@ export interface CacheEntry {
   fetchedAt: string; // ISO-8601 UTC timestamp
   ttlSeconds: number; // Cache TTL, typically pollIntervalSeconds
 
-  errorState: ErrorState | null; // Last error, if any
+  errorState: CacheErrorState | null; // Last error, if any
 }
 
 /**

@@ -10,6 +10,7 @@ import type { NormalizedUsage } from '../types/normalized-usage.js';
 import type { ErrorState } from './error.js';
 import { renderComponent, type ComponentId } from './component.js';
 import { renderError } from './error.js';
+import { isTransitionState } from './transition.js';
 import {
   getTerminalWidth,
   computeMaxWidth,
@@ -17,19 +18,7 @@ import {
   visibleLength,
   COMPONENT_DROP_PRIORITY,
 } from './truncate.js';
-
-/**
- * Default component render order (when not specified in config)
- */
-const DEFAULT_COMPONENT_ORDER: ComponentId[] = [
-  'daily',
-  'weekly',
-  'monthly',
-  'balance',
-  'tokens',
-  'rateLimit',
-  'plan',
-];
+import { DEFAULT_COMPONENT_ORDER } from '../types/config.js';
 
 /**
  * Render full statusline
@@ -127,15 +116,8 @@ export function renderStatusline(
 
   // Append error indicator if present
   if (errorState) {
-    // Check if this is a transition state
-    const isTransition =
-      errorState === 'switching-provider' ||
-      errorState === 'new-credentials' ||
-      errorState === 'new-endpoint' ||
-      errorState === 'auth-error-waiting';
-
     // Transition states always replace output
-    if (isTransition) {
+    if (isTransitionState(errorState)) {
       statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
     } else {
       // Non-transition errors: append if cache, replace if no cache
@@ -192,13 +174,7 @@ function calculateStatuslineWidth(
 
   // Add error indicator length if present
   if (errorState) {
-    const isTransition =
-      errorState === 'switching-provider' ||
-      errorState === 'new-credentials' ||
-      errorState === 'new-endpoint' ||
-      errorState === 'auth-error-waiting';
-
-    if (isTransition) {
+    if (isTransitionState(errorState)) {
       statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
     } else {
       const hasCache = components.length > 0;

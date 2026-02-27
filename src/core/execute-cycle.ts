@@ -16,6 +16,7 @@ import { renderError } from '../renderer/error.js';
 import type { CacheEntry } from '../types/index.js';
 import { CACHE_VERSION } from '../types/index.js';
 import { logger } from '../services/logger.js';
+import { EXIT_BUFFER_MS } from './constants.js';
 
 /**
  * Execute a single statusline cycle
@@ -69,7 +70,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
 
   // Path C: Cache stale/missing → fetch within deadline
   // Calculate deadline and remaining budget
-  const deadline = startTime + timeoutBudgetMs - 50; // 50ms exit buffer
+  const deadline = startTime + timeoutBudgetMs - EXIT_BUFFER_MS;
   const remainingBudget = deadline - Date.now();
 
   // Guard: insufficient time budget

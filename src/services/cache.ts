@@ -4,12 +4,14 @@
  * Atomic writes, TTL validation, per-terminal isolation
  */
 
-import { readFileSync, writeFileSync, existsSync, unlinkSync, renameSync, chmodSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import type { CacheEntry, EnvSnapshot, Config, ProviderDetectionCacheEntry } from '../types/index.js';
 import { CACHE_VERSION, isCacheEntry, isProviderDetectionCacheEntry } from '../types/index.js';
 import { shortHash, sha256 } from './hash.js';
+import { ensureDir } from './ensure-dir.js';
+import { atomicWriteFile } from './atomic-write.js';
 
 /**
  * Get cache directory path
@@ -27,9 +29,7 @@ export function getCacheDir(): string {
  */
 function ensureCacheDir(): void {
   const dir = getCacheDir();
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true, mode: 0o700 });
-  }
+  ensureDir(dir);
 }
 
 /**
@@ -83,7 +83,6 @@ export function readCache(baseUrl: string): CacheEntry | null {
  */
 export function writeCache(baseUrl: string, entry: CacheEntry): void {
   const path = getCachePath(baseUrl);
-  const tmpPath = `${path}.tmp`;
 
   try {
     ensureCacheDir();
@@ -91,29 +90,10 @@ export function writeCache(baseUrl: string, entry: CacheEntry): void {
     // Serialize
     const content = JSON.stringify(entry, null, 2);
 
-    // Write to temp file
-    writeFileSync(tmpPath, content, { encoding: 'utf-8', mode: 0o600 });
-
-    // Try to set permissions explicitly (no-op on Windows)
-    try {
-      chmodSync(tmpPath, 0o600);
-    } catch {
-      // Ignore permission errors on Windows
-    }
-
-    // Atomic rename
-    renameSync(tmpPath, path);
+    // Write atomically
+    atomicWriteFile(path, content);
   } catch (error: unknown) {
     console.warn(`Failed to write cache to ${path}: ${error}`);
-
-    // Cleanup temp file on error
-    try {
-      if (existsSync(tmpPath)) {
-        unlinkSync(tmpPath);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
   }
 }
 
@@ -339,7 +319,6 @@ export function readProviderDetectionCache(baseUrl: string): ProviderDetectionCa
  */
 export function writeProviderDetectionCache(baseUrl: string, entry: ProviderDetectionCacheEntry): void {
   const path = getProviderDetectionCachePath(baseUrl);
-  const tmpPath = `${path}.tmp`;
 
   try {
     ensureCacheDir();
@@ -347,28 +326,9 @@ export function writeProviderDetectionCache(baseUrl: string, entry: ProviderDete
     // Serialize
     const content = JSON.stringify(entry, null, 2);
 
-    // Write to temp file
-    writeFileSync(tmpPath, content, { encoding: 'utf-8', mode: 0o600 });
-
-    // Try to set permissions explicitly (no-op on Windows)
-    try {
-      chmodSync(tmpPath, 0o600);
-    } catch {
-      // Ignore permission errors on Windows
-    }
-
-    // Atomic rename
-    renameSync(tmpPath, path);
+    // Write atomically
+    atomicWriteFile(path, content);
   } catch (error: unknown) {
     console.warn(`Failed to write provider detection cache to ${path}: ${error}`);
-
-    // Cleanup temp file on error
-    try {
-      if (existsSync(tmpPath)) {
-        unlinkSync(tmpPath);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
   }
 }

@@ -6,12 +6,14 @@
  * Billing mode: Always "subscription"-like (cost-limit based)
  */
 
-import type { NormalizedUsage, QuotaWindow, Config } from '../types/index.js';
-import { computeSoonestReset } from '../types/index.js';
+import type { NormalizedUsage, Config } from '../types/index.js';
+import { computeSoonestReset, createEmptyNormalizedUsage } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
 import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
 import { extractOrigin } from './health-probe.js';
+import { createQuotaWindow } from './quota-window.js';
+import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
 import {
   computeNextMidnightLocal,
   computeNextMondayLocal,
@@ -82,39 +84,13 @@ function computeWeeklyResetTime(resetDay: number, resetHour: number): string {
 }
 
 /**
- * Create QuotaWindow from usage/limit values
- * No limit or 0 limit means unlimited → hide component
- */
-function createQuotaWindow(
-  used: number | undefined,
-  limit: number | undefined,
-  resetsAt: string | null
-): QuotaWindow | null {
-  // No usage data → hide component
-  if (used === undefined) return null;
-
-  // No limit or 0 limit (unlimited) → hide component (not useful to display)
-  if (!limit || limit <= 0) return null;
-
-  // Compute remaining
-  const remaining = Math.max(0, limit - used);
-
-  return {
-    used,
-    limit,
-    remaining,
-    resetsAt,
-  };
-}
-
-/**
  * Fetch and normalize claude-relay-service usage data
  */
 export async function fetchClaudeRelayService(
   baseUrl: string,
   token: string,
   config: Config,
-  timeoutMs: number = 5000
+  timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
 ): Promise<NormalizedUsage> {
   // Extract origin to properly construct URL
   // /apiStats is mounted at root, not under /api
@@ -151,93 +127,85 @@ export async function fetchClaudeRelayService(
     const data = response.data;
     const limits = data.limits;
 
-    // Initialize base structure
-    const result: NormalizedUsage = {
-      provider: 'claude-relay-service',
-      billingMode: 'subscription',
-      planName: data.name ?? 'API Key',
-      fetchedAt: new Date().toISOString(),
-      resetSemantics: 'rolling-window',
-      daily: null,
-      weekly: null,
-      monthly: null,
-      balance: null,
-      resetsAt: null,
-      tokenStats: null,
-      rateLimit: null,
-    };
+    // Create base using factory
+    const base = createEmptyNormalizedUsage(
+      'claude-relay-service',
+      'subscription',
+      data.name ?? 'API Key'
+    );
 
-    // Daily quota
-    result.daily = createQuotaWindow(
+    // Build daily quota
+    const daily = createQuotaWindow(
       limits.currentDailyCost,
       limits.dailyCostLimit,
       computeNextMidnightLocal()
     );
 
-    // Weekly quota (Opus-only cost)
-    // Note: This tracks Opus-model cost only, not total cost
-    if (limits.weeklyResetDay !== undefined && limits.weeklyResetHour !== undefined) {
-      const weeklyResetsAt = computeWeeklyResetTime(
-        limits.weeklyResetDay,
-        limits.weeklyResetHour
-      );
-      result.weekly = createQuotaWindow(
-        limits.weeklyOpusCost,
-        limits.weeklyOpusCostLimit,
-        weeklyResetsAt
-      );
-    } else {
-      result.weekly = createQuotaWindow(
-        limits.weeklyOpusCost,
-        limits.weeklyOpusCostLimit,
-        computeNextMondayLocal()
-      );
-    }
+    // Build weekly quota (Opus-only cost)
+    const weeklyResetsAt =
+      limits.weeklyResetDay !== undefined && limits.weeklyResetHour !== undefined
+        ? computeWeeklyResetTime(limits.weeklyResetDay, limits.weeklyResetHour)
+        : computeNextMondayLocal();
 
-    // Monthly: not provided by relay
-    result.monthly = null;
+    const weekly = createQuotaWindow(
+      limits.weeklyOpusCost,
+      limits.weeklyOpusCostLimit,
+      weeklyResetsAt
+    );
 
     // resetsAt: use windowEndTime if available, otherwise compute from quota windows
-    if (limits.windowEndTime) {
-      result.resetsAt = new Date(limits.windowEndTime).toISOString();
-    } else {
-      result.resetsAt = computeSoonestReset(result);
-    }
+    const resetsAt = limits.windowEndTime
+      ? new Date(limits.windowEndTime).toISOString()
+      : (() => {
+          const tempResult = { ...base, daily, weekly, monthly: null };
+          return computeSoonestReset(tempResult);
+        })();
 
-    // Token stats (total only, no today)
-    if (data.usage?.total) {
-      const total = data.usage.total;
-      result.tokenStats = {
-        today: null,
-        total: {
-          requests: total.requests ?? 0,
-          inputTokens: total.inputTokens ?? 0,
-          outputTokens: total.outputTokens ?? 0,
-          cacheCreationTokens: total.cacheCreateTokens ?? 0,
-          cacheReadTokens: total.cacheReadTokens ?? 0,
-          totalTokens: total.tokens ?? (total.inputTokens ?? 0) + (total.outputTokens ?? 0),
-          cost: total.cost ?? 0,
-        },
-        rpm: null,
-        tpm: null,
-      };
-    }
+    // Build token stats (total only, no today)
+    const tokenStats = data.usage?.total
+      ? {
+          today: null,
+          total: {
+            requests: data.usage.total.requests ?? 0,
+            inputTokens: data.usage.total.inputTokens ?? 0,
+            outputTokens: data.usage.total.outputTokens ?? 0,
+            cacheCreationTokens: data.usage.total.cacheCreateTokens ?? 0,
+            cacheReadTokens: data.usage.total.cacheReadTokens ?? 0,
+            totalTokens:
+              data.usage.total.tokens ??
+              (data.usage.total.inputTokens ?? 0) + (data.usage.total.outputTokens ?? 0),
+            cost: data.usage.total.cost ?? 0,
+          },
+          rpm: null,
+          tpm: null,
+        }
+      : null;
 
-    // Rate limit window
-    if (limits.rateLimitWindow !== undefined) {
-      result.rateLimit = {
-        windowSeconds: limits.rateLimitWindow * 60, // Convert minutes to seconds
-        requestsUsed: limits.currentWindowRequests ?? 0,
-        requestsLimit: limits.rateLimitRequests && limits.rateLimitRequests > 0
-          ? limits.rateLimitRequests
-          : null,
-        costUsed: limits.currentWindowCost ?? 0,
-        costLimit: limits.rateLimitCost && limits.rateLimitCost > 0
-          ? limits.rateLimitCost
-          : null,
-        remainingSeconds: limits.windowRemainingSeconds ?? 0,
-      };
-    }
+    // Build rate limit window
+    const rateLimit =
+      limits.rateLimitWindow !== undefined
+        ? {
+            windowSeconds: limits.rateLimitWindow * 60, // Convert minutes to seconds
+            requestsUsed: limits.currentWindowRequests ?? 0,
+            requestsLimit:
+              limits.rateLimitRequests && limits.rateLimitRequests > 0
+                ? limits.rateLimitRequests
+                : null,
+            costUsed: limits.currentWindowCost ?? 0,
+            costLimit: limits.rateLimitCost && limits.rateLimitCost > 0 ? limits.rateLimitCost : null,
+            remainingSeconds: limits.windowRemainingSeconds ?? 0,
+          }
+        : null;
 
-  return result;
+    // Return immutable result
+    return {
+      ...base,
+      resetSemantics: 'rolling-window',
+      daily,
+      weekly,
+      monthly: null,
+      resetsAt,
+      tokenStats,
+      rateLimit,
+    };
 }

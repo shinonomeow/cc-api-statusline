@@ -5,9 +5,10 @@
  * Enable with: DEBUG=1 or CC_STATUSLINE_DEBUG=1
  */
 
-import { appendFileSync, mkdirSync, existsSync } from 'fs';
+import { appendFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
+import { ensureDir } from './ensure-dir.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -38,9 +39,7 @@ class Logger {
   private ensureLogDir(): void {
     try {
       const dir = dirname(this.logPath);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true, mode: 0o700 });
-      }
+      ensureDir(dir);
     } catch {
       // Silent failure - don't break execution if we can't create log dir
       this.enabled = false;

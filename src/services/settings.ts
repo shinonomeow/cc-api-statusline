@@ -5,10 +5,10 @@
  * statusline auto-setup.
  */
 
-import { readFileSync, writeFileSync, existsSync, renameSync, unlinkSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
+import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { getSettingsJsonPath } from './env.js';
+import { atomicWriteFile } from './atomic-write.js';
 
 export interface ClaudeSettings {
   statusLine?: {
@@ -45,35 +45,15 @@ export function loadClaudeSettings(): ClaudeSettings {
  */
 export function saveClaudeSettings(settings: ClaudeSettings): void {
   const path = getSettingsJsonPath();
-  const tmpPath = `${path}.tmp`;
 
   try {
-    // Ensure directory exists
-    const dir = dirname(path);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true, mode: 0o700 });
-    }
-
     // Serialize
-    const content = JSON.stringify(settings, null, 2) + '\n';
+    const content = JSON.stringify(settings, null, 2);
 
-    // Write to temp file
-    writeFileSync(tmpPath, content, { encoding: 'utf-8', mode: 0o600 });
-
-    // Atomic rename
-    renameSync(tmpPath, path);
+    // Write atomically with parent dir creation and newline
+    atomicWriteFile(path, content, { ensureParentDir: true, appendNewline: true });
   } catch (error: unknown) {
     console.error(`Failed to write settings to ${path}: ${error}`);
-
-    // Cleanup temp file on error
-    try {
-      if (existsSync(tmpPath)) {
-        unlinkSync(tmpPath);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
-
     throw error;
   }
 }
@@ -108,13 +88,16 @@ export function isBunxAvailable(): boolean {
 export function installStatusLine(runner: 'npx' | 'bunx'): void {
   const settings = loadClaudeSettings();
 
-  settings.statusLine = {
-    type: 'command',
-    command: `${runner} -y cc-api-statusline@latest`,
-    padding: 0,
+  const updatedSettings: ClaudeSettings = {
+    ...settings,
+    statusLine: {
+      type: 'command',
+      command: `${runner} -y cc-api-statusline@latest`,
+      padding: 0,
+    },
   };
 
-  saveClaudeSettings(settings);
+  saveClaudeSettings(updatedSettings);
 }
 
 /**
@@ -125,7 +108,8 @@ export function uninstallStatusLine(): void {
   const settings = loadClaudeSettings();
 
   if ('statusLine' in settings) {
-    delete settings.statusLine;
-    saveClaudeSettings(settings);
+    // Destructure to remove statusLine, rest contains all other keys
+    const { statusLine: _, ...rest } = settings;
+    saveClaudeSettings(rest);
   }
 }

@@ -156,7 +156,7 @@ export function createEmptyNormalizedUsage(
 }
 
 /**
- * Compute the soonest reset time from all quota windows
+ * Compute the soonest reset time from all quota windows (immutable)
  */
 export function computeSoonestReset(usage: NormalizedUsage): string | null {
   const times: string[] = [];
@@ -168,6 +168,7 @@ export function computeSoonestReset(usage: NormalizedUsage): string | null {
   if (times.length === 0) return null;
 
   // Sort ISO-8601 strings lexicographically (they sort correctly)
-  times.sort();
-  return times[0] ?? null;
+  // Create new array to avoid mutating input
+  const sorted = [...times].sort();
+  return sorted[0] ?? null;
 }

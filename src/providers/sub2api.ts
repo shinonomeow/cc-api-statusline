@@ -6,11 +6,13 @@
  * Billing modes: subscription (has subscription object) or balance
  */
 
-import type { NormalizedUsage, PeriodTokens, QuotaWindow, Config } from '../types/index.js';
-import { computeSoonestReset } from '../types/index.js';
+import type { NormalizedUsage, PeriodTokens, Config } from '../types/index.js';
+import { computeSoonestReset, createEmptyNormalizedUsage } from '../types/index.js';
 import { secureFetch, HttpError } from './http.js';
 import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
+import { createQuotaWindow } from './quota-window.js';
+import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
 import {
   computeNextMidnightLocal,
   computeNextMondayLocal,
@@ -68,38 +70,13 @@ function mapPeriodTokens(data: Sub2apiPeriodTokens | undefined): PeriodTokens | 
 }
 
 /**
- * Create QuotaWindow from usage/limit values
- */
-function createQuotaWindow(
-  used: number | undefined,
-  limit: number | null | undefined,
-  resetsAt: string
-): QuotaWindow | null {
-  // No usage data → hide component
-  if (used === undefined) return null;
-
-  // No limit (unlimited) → hide component (not useful to display)
-  if (limit === null || limit === undefined) return null;
-
-  // Compute remaining
-  const remaining = Math.max(0, limit - used);
-
-  return {
-    used,
-    limit,
-    remaining,
-    resetsAt,
-  };
-}
-
-/**
  * Fetch and normalize sub2api usage data
  */
 export async function fetchSub2api(
   baseUrl: string,
   token: string,
   config: Config,
-  timeoutMs: number = 5000
+  timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
 ): Promise<NormalizedUsage> {
   const url = `${baseUrl}/v1/usage`;
 
@@ -129,40 +106,27 @@ export async function fetchSub2api(
     const hasSubscription = !!data.subscription;
     const billingMode = hasSubscription ? 'subscription' : 'balance';
 
-    // Initialize base structure
-    const result: NormalizedUsage = {
-      provider: 'sub2api',
+    // Create base using factory
+    const base = createEmptyNormalizedUsage(
+      'sub2api',
       billingMode,
-      planName: data.planName ?? 'Unknown',
-      fetchedAt: new Date().toISOString(),
-      resetSemantics: 'end-of-day',
-      daily: null,
-      weekly: null,
-      monthly: null,
-      balance: null,
-      resetsAt: null,
-      tokenStats: null,
-      rateLimit: null,
-    };
+      data.planName ?? 'Unknown'
+    );
+
+    // Build mode-specific fields
+    let balance = null;
+    let daily = null;
+    let weekly = null;
+    let monthly = null;
+    let resetsAt = null;
 
     if (billingMode === 'balance') {
       // Balance mode
-      const remaining = data.remaining ?? 0;
-
-      // Edge case: remaining == -1 means unlimited
-      if (remaining === -1) {
-        result.balance = {
-          remaining: -1,
-          initial: null,
-          unit: data.unit ?? 'USD',
-        };
-      } else {
-        result.balance = {
-          remaining,
-          initial: null,
-          unit: data.unit ?? 'USD',
-        };
-      }
+      balance = {
+        remaining: data.remaining ?? 0,
+        initial: null,
+        unit: data.unit ?? 'USD',
+      };
     } else {
       // Subscription mode
       const sub = data.subscription;
@@ -170,42 +134,49 @@ export async function fetchSub2api(
         throw new Error('Subscription mode but no subscription object in response');
       }
 
-      // Daily quota
-      result.daily = createQuotaWindow(
+      daily = createQuotaWindow(
         sub.daily_usage_usd,
         sub.daily_limit_usd,
         computeNextMidnightLocal()
       );
 
-      // Weekly quota
-      result.weekly = createQuotaWindow(
+      weekly = createQuotaWindow(
         sub.weekly_usage_usd,
         sub.weekly_limit_usd,
         computeNextMondayLocal()
       );
 
-      // Monthly quota
-      result.monthly = createQuotaWindow(
+      monthly = createQuotaWindow(
         sub.monthly_usage_usd,
         sub.monthly_limit_usd,
         computeFirstOfNextMonthLocal()
       );
 
-      // Compute soonest reset
-      result.resetsAt = computeSoonestReset(result);
+      // Compute soonest reset from built windows
+      const tempResult = { ...base, daily, weekly, monthly };
+      resetsAt = computeSoonestReset(tempResult);
     }
 
-    // Token stats (both modes)
-    if (data.usage) {
-      result.tokenStats = {
-        today: mapPeriodTokens(data.usage.today),
-        total: mapPeriodTokens(data.usage.total),
-        rpm: data.usage.rpm ?? null,
-        tpm: data.usage.tpm ?? null,
-      };
-    }
+    // Build token stats (both modes)
+    const tokenStats = data.usage
+      ? {
+          today: mapPeriodTokens(data.usage.today),
+          total: mapPeriodTokens(data.usage.total),
+          rpm: data.usage.rpm ?? null,
+          tpm: data.usage.tpm ?? null,
+        }
+      : null;
 
-    return result;
+    // Return immutable result
+    return {
+      ...base,
+      balance,
+      daily,
+      weekly,
+      monthly,
+      resetsAt,
+      tokenStats,
+    };
   } catch (error: unknown) {
     // Handle HTTP 429 - quota exhausted
     if (error instanceof HttpError && error.statusCode === 429) {
