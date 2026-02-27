@@ -237,7 +237,7 @@ describe('claude-relay-service provider', () => {
       expect(result.weekly?.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });
 
-    it('should provide resetsAt for weekly quota without reset day/hour (fallback)', async () => {
+    it('should return null resetsAt for weekly quota without reset day/hour (cost fallback)', async () => {
       const responseWithoutWeeklyReset = {
         ...mockResponse,
         data: {
@@ -255,8 +255,8 @@ describe('claude-relay-service provider', () => {
       const result = await fetchClaudeRelayService('https://relay.example.com', 'test-token', DEFAULT_CONFIG);
 
       expect(result.weekly).not.toBeNull();
-      expect(result.weekly?.resetsAt).not.toBeNull();
-      expect(result.weekly?.resetsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      // When reset day/hour not available, resetsAt should be null (triggers cost fallback display)
+      expect(result.weekly?.resetsAt).toBeNull();
     });
 
     it('should use windowEndTime for top-level resetsAt when available', async () => {

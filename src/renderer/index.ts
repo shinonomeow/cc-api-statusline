@@ -19,6 +19,8 @@ import {
   COMPONENT_DROP_PRIORITY,
 } from './truncate.js';
 import { DEFAULT_COMPONENT_ORDER } from '../types/config.js';
+import { renderDivider } from './divider.js';
+import { createRenderContext } from './context.js';
 
 /**
  * Render full statusline
@@ -27,14 +29,19 @@ import { DEFAULT_COMPONENT_ORDER } from '../types/config.js';
  * @param config - Full configuration
  * @param errorState - Optional error state to display
  * @param cacheAge - Age of cached data in minutes (for staleness indicator)
+ * @param isPiped - Whether running in piped mode (affects capability resolution)
  * @returns Rendered statusline string
  */
 export function renderStatusline(
   data: NormalizedUsage,
   config: Config,
   errorState?: ErrorState,
-  cacheAge?: number
+  cacheAge?: number,
+  isPiped = false
 ): string {
+  // Create render context (resolved terminal capabilities for this render pass)
+  const renderContext = createRenderContext(config, isPiped);
+
   // Determine component render order
   const componentOrder = getComponentOrder(config);
 
@@ -48,13 +55,13 @@ export function renderStatusline(
       continue;
     }
 
-    // Render component
-    // If componentConfig is undefined, treat as true (use defaults)
+    // Render component (if componentConfig is undefined, treat as true → use defaults)
     const rendered = renderComponent(
       componentId,
       data,
       componentConfig === true || componentConfig === undefined ? {} : componentConfig,
-      config
+      config,
+      renderContext
     );
 
     // Store non-null results in map
@@ -63,37 +70,20 @@ export function renderStatusline(
     }
   }
 
-  // Get target width
-  const termWidth = getTerminalWidth();
-  const maxWidth = computeMaxWidth(termWidth, config.display.maxWidth ?? 100);
-  const separator = config.display.separator ?? ' | ';
+  // Compute separator string from components.divider config
+  const separator = computeSeparator(config);
 
-  // Intelligent component dropping
-  // Start with all components and drop lowest-priority ones until we fit
+  // Intelligent component dropping — drop lowest-priority components until we fit
   const activeComponents = new Set(componentMap.keys());
-
-  // Calculate current width
   let currentWidth = calculateStatuslineWidth(componentMap, activeComponents, componentOrder, separator, errorState, data, cacheAge);
 
-  // Drop components in priority order until we fit (or run out of components to drop)
-  // Keep at least one component (don't drop everything)
+  // Keep dropping until we fit or only one component remains
   for (const dropCandidate of COMPONENT_DROP_PRIORITY) {
-    // Skip 'countdown' - it's a sub-component, not a top-level component
-    if (dropCandidate === 'countdown') {
-      continue;
-    }
+    // 'countdown' is a sub-component, not top-level
+    if (dropCandidate === 'countdown') continue;
+    if (currentWidth <= maxWidth(config)) break;
+    if (activeComponents.size <= 1) break;
 
-    // If we fit within maxWidth, stop dropping
-    if (currentWidth <= maxWidth) {
-      break;
-    }
-
-    // Don't drop if it's the last component
-    if (activeComponents.size <= 1) {
-      break;
-    }
-
-    // Drop this component if it exists
     if (activeComponents.has(dropCandidate as ComponentId)) {
       activeComponents.delete(dropCandidate as ComponentId);
       currentWidth = calculateStatuslineWidth(componentMap, activeComponents, componentOrder, separator, errorState, data, cacheAge);
@@ -105,9 +95,7 @@ export function renderStatusline(
   for (const componentId of componentOrder) {
     if (activeComponents.has(componentId)) {
       const rendered = componentMap.get(componentId);
-      if (rendered) {
-        renderedComponents.push(rendered);
-      }
+      if (rendered) renderedComponents.push(rendered);
     }
   }
 
@@ -116,39 +104,50 @@ export function renderStatusline(
 
   // Append error indicator if present
   if (errorState) {
-    // Transition states always replace output
     if (isTransitionState(errorState)) {
       statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
     } else {
-      // Non-transition errors: append if cache, replace if no cache
       const hasCache = renderedComponents.length > 0;
       const errorMode = hasCache ? 'with-cache' : 'without-cache';
-      const errorIndicator = renderError(
-        errorState,
-        errorMode,
-        data.provider,
-        undefined,
-        cacheAge
-      );
-
-      if (hasCache) {
-        // With cache: append with space
-        statusline = `${statusline} ${errorIndicator}`;
-      } else {
-        // Without cache: error message replaces output
-        statusline = errorIndicator;
-      }
+      const errorIndicator = renderError(errorState, errorMode, data.provider, undefined, cacheAge);
+      statusline = hasCache ? `${statusline} ${errorIndicator}` : errorIndicator;
     }
   }
 
   // Apply hard truncation as safety net
-  statusline = ansiAwareTruncate(statusline, maxWidth);
+  const termWidth = getTerminalWidth();
+  const maxW = computeMaxWidth(termWidth, config.display.maxWidth ?? 100);
+  statusline = ansiAwareTruncate(statusline, maxW);
 
   return statusline;
 }
 
 /**
- * Calculate total visible width of statusline with given components
+ * Compute the separator string used between rendered components.
+ *
+ * Priority:
+ * 1. components.divider is a DividerConfig object → use renderDivider()
+ * 2. components.divider is false → no separator
+ * 3. components.divider is true or unset → use display.separator (default: ' | ')
+ */
+function computeSeparator(config: Config): string {
+  const dividerConfig = config.components.divider;
+  if (dividerConfig === false) return '';
+  if (typeof dividerConfig === 'object') return renderDivider(dividerConfig);
+  // true or undefined → fall back to display.separator
+  return config.display.separator ?? ' | ';
+}
+
+/**
+ * Get the maximum width for this render pass
+ */
+function maxWidth(config: Config): number {
+  const termWidth = getTerminalWidth();
+  return computeMaxWidth(termWidth, config.display.maxWidth ?? 100);
+}
+
+/**
+ * Calculate total visible width of statusline with given active components
  */
 function calculateStatuslineWidth(
   componentMap: Map<ComponentId, string>,
@@ -159,20 +158,16 @@ function calculateStatuslineWidth(
   data: NormalizedUsage,
   cacheAge: number | undefined
 ): number {
-  // Join active components in the correct order
   const components: string[] = [];
   for (const id of componentOrder) {
     if (activeComponents.has(id)) {
       const rendered = componentMap.get(id);
-      if (rendered) {
-        components.push(rendered);
-      }
+      if (rendered) components.push(rendered);
     }
   }
 
   let statusline = components.join(separator);
 
-  // Add error indicator length if present
   if (errorState) {
     if (isTransitionState(errorState)) {
       statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
@@ -180,12 +175,7 @@ function calculateStatuslineWidth(
       const hasCache = components.length > 0;
       const errorMode = hasCache ? 'with-cache' : 'without-cache';
       const errorIndicator = renderError(errorState, errorMode, data.provider, undefined, cacheAge);
-
-      if (hasCache) {
-        statusline = `${statusline} ${errorIndicator}`;
-      } else {
-        statusline = errorIndicator;
-      }
+      statusline = hasCache ? `${statusline} ${errorIndicator}` : errorIndicator;
     }
   }
 
@@ -198,15 +188,12 @@ function calculateStatuslineWidth(
  * - Components explicitly listed in config.components are rendered in that order
  * - Components omitted from config are appended in default order
  * - Components set to false are excluded
- *
- * @param config - Full configuration
- * @returns Ordered array of component IDs to render
+ * - 'divider' is a config-only key, not rendered as a component
  */
 function getComponentOrder(config: Config): ComponentId[] {
   const explicitOrder: ComponentId[] = [];
   const explicitSet = new Set<ComponentId>();
 
-  // Collect explicitly listed components (in order)
   for (const key of Object.keys(config.components)) {
     if (isComponentId(key)) {
       explicitOrder.push(key);
@@ -226,7 +213,8 @@ function getComponentOrder(config: Config): ComponentId[] {
 }
 
 /**
- * Type guard: check if string is a valid ComponentId
+ * Type guard: check if string is a renderable ComponentId
+ * 'divider' is excluded — it's config-only, not rendered directly
  */
 function isComponentId(key: string): key is ComponentId {
   return DEFAULT_COMPONENT_ORDER.includes(key as ComponentId);

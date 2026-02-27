@@ -79,7 +79,7 @@ describe('config service', () => {
       const configPath = join(testDir, 'config.json');
       const userConfig = {
         display: {
-          layout: 'compact' as const,
+          layout: 'percent-first' as const,
           maxWidth: 90,
         },
         components: {
@@ -93,7 +93,7 @@ describe('config service', () => {
       const config = loadConfig(configPath);
 
       // Should merge with defaults
-      expect(config.display.layout).toBe('compact');
+      expect(config.display.layout).toBe('percent-first');
       expect(config.display.maxWidth).toBe(90);
       // Defaults should be preserved
       expect(config.display.displayMode).toBe(DEFAULT_CONFIG.display.displayMode);
@@ -151,7 +151,7 @@ describe('config service', () => {
       const configPath = join(testDir, 'config.json');
       const userConfig = {
         display: {
-          layout: 'minimal' as const,
+          displayMode: 'compact' as const,
         },
         colors: {
           custom: {
@@ -169,7 +169,7 @@ describe('config service', () => {
       const config = loadConfig(configPath);
 
       // User config should be merged
-      expect(config.display.layout).toBe('minimal');
+      expect(config.display.displayMode).toBe('compact');
       expect(config.colors?.['custom']).toEqual(userConfig.colors.custom);
 
       // Defaults should be preserved
@@ -185,7 +185,7 @@ describe('config service', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          layout: 'compact' as const,
+          layout: 'percent-first' as const,
         },
       };
 
@@ -195,7 +195,7 @@ describe('config service', () => {
 
       // Read back and verify
       const loaded = loadConfig(configPath);
-      expect(loaded.display.layout).toBe('compact');
+      expect(loaded.display.layout).toBe('percent-first');
     });
 
     it('should use atomic write (no .tmp file left behind)', () => {

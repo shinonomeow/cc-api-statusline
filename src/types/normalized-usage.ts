@@ -13,6 +13,7 @@ export interface QuotaWindow {
   limit: number | null; // USD, null = unlimited
   remaining: number | null; // USD, null = unlimited
   resetsAt: string | null; // ISO-8601 UTC
+  qualifier?: string; // Optional label qualifier, e.g. 'Opus' → renders as "Weekly (Opus)"
 }
 
 /**

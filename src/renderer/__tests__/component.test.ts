@@ -72,28 +72,29 @@ describe('renderComponent - quota components', () => {
     });
   });
 
-  describe('compact layout', () => {
+  describe('compact displayMode', () => {
     test('uses single letter labels', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(50, 100),
       });
-      const config: ComponentConfig = { layout: 'compact' };
+      const config: ComponentConfig = { displayMode: 'compact' };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
       expect(plain).toMatch(/^D /);
     });
   });
 
-  describe('minimal layout', () => {
+  describe('hidden displayMode', () => {
     test('hides labels', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(50, 100),
       });
-      const config: ComponentConfig = { layout: 'minimal' };
+      const config: ComponentConfig = { displayMode: 'hidden' };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
       expect(plain).not.toContain('Daily');
       expect(plain).not.toContain('D');
+      expect(plain).toContain('50%'); // Value still shown
     });
   });
 
@@ -102,7 +103,8 @@ describe('renderComponent - quota components', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(50, 100),
       });
-      const config: ComponentConfig = { layout: 'percent-first' };
+      // Explicitly use bar progressStyle + classic style for deterministic char check
+      const config: ComponentConfig = { layout: 'percent-first', progressStyle: 'bar', barStyle: 'classic' };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
       // Percentage should appear before bar characters
@@ -113,33 +115,44 @@ describe('renderComponent - quota components', () => {
     });
   });
 
-  describe('display modes', () => {
-    test('bar mode renders progress bar', () => {
+  describe('progress styles', () => {
+    test('bar progressStyle (classic) renders progress bar', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(50, 100),
       });
-      const config: ComponentConfig = { displayMode: 'bar' };
+      // Explicitly use classic style for ━ char assertion
+      const config: ComponentConfig = { progressStyle: 'bar', barStyle: 'classic' };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
       expect(plain).toContain('━'); // Bar character
     });
 
-    test('percentage mode skips bar', () => {
+    test('bar progressStyle (block, default) renders progress bar', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(50, 100),
       });
-      const config: ComponentConfig = { displayMode: 'percentage' };
+      const config: ComponentConfig = { progressStyle: 'bar' };
+      const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('█'); // Block bar character (default barStyle)
+    });
+
+    test('hidden progressStyle skips bar', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(50, 100),
+      });
+      const config: ComponentConfig = { progressStyle: 'hidden' };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
       expect(plain).not.toContain('━');
       expect(plain).toContain('50%');
     });
 
-    test('icon-pct mode renders icon', () => {
+    test('icon progressStyle renders nerd font icon', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(50, 100),
       });
-      const config: ComponentConfig = { displayMode: 'icon-pct' };
+      const config: ComponentConfig = { progressStyle: 'icon' };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       expect(result).toBeTruthy();
       // Icon should be present (Unicode progress circle)
@@ -384,9 +397,9 @@ describe('renderComponent - plan', () => {
     expect(plain).toContain('Pro Plan');
   });
 
-  test('hides plan in minimal layout', () => {
+  test('hides plan in hidden displayMode', () => {
     const data = createMockUsage({ planName: 'Pro Plan' });
-    const config: ComponentConfig = { layout: 'minimal' };
+    const config: ComponentConfig = { displayMode: 'hidden' };
     const result = renderComponent('plan', data, config, DEFAULT_CONFIG);
     expect(result).toBeNull();
   });
@@ -404,14 +417,26 @@ describe('renderComponent - custom labels', () => {
     expect(plain).not.toContain('Daily');
   });
 
-  test('uses custom object label', () => {
+  test('uses custom object label text in text mode', () => {
     const data = createMockUsage({
       daily: createQuotaWindow(50, 100),
     });
-    const config: ComponentConfig = { label: { text: 'Today', icon: '📅' } };
+    const config: ComponentConfig = { label: { text: 'Today', emoji: '📅' }, progressStyle: 'bar' };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).toContain('Today');
+  });
+
+  test('uses custom emoji label in emoji mode', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    // emoji mode uses label.emoji, not label.text
+    const config: ComponentConfig = { label: { text: 'Today', emoji: '🌟' }, displayMode: 'emoji' };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('🌟');
+    expect(plain).not.toContain('Today');
   });
 
   test('hides label when label: false', () => {
@@ -476,31 +501,99 @@ describe('renderComponent - per-part coloring', () => {
   });
 });
 
-describe('renderComponent - icon-pct label behavior', () => {
-  test('uses label.icon when displayMode is icon-pct', () => {
-    const data = createMockUsage({
-      daily: createQuotaWindow(50, 100),
-    });
-    const config: ComponentConfig = {
-      displayMode: 'icon-pct',
-      label: { text: 'Today', icon: '📅' },
-    };
-    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+describe('renderComponent - label display modes', () => {
+  test('text mode uses full label text', () => {
+    const data = createMockUsage({ daily: createQuotaWindow(50, 100) });
+    const result = renderComponent('daily', data, { displayMode: 'text' }, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    expect(plain).toContain('📅'); // Icon should be used
-    expect(plain).not.toContain('Today'); // Text should not be used
+    expect(plain).toContain('Daily');
   });
 
-  test('uses text label when icon not set in icon-pct mode', () => {
+  test('compact mode uses single-char label', () => {
+    const data = createMockUsage({ daily: createQuotaWindow(50, 100) });
+    const result = renderComponent('daily', data, { displayMode: 'compact' }, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toMatch(/^D /);
+    expect(plain).not.toContain('Daily');
+  });
+
+  test('emoji mode uses emoji label', () => {
+    const data = createMockUsage({ daily: createQuotaWindow(50, 100) });
+    const result = renderComponent('daily', data, { displayMode: 'emoji' }, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('📅'); // Default calendar emoji
+    expect(plain).not.toContain('Daily');
+  });
+
+  test('custom emoji overrides default in emoji mode', () => {
+    const data = createMockUsage({ daily: createQuotaWindow(50, 100) });
+    const config: ComponentConfig = { displayMode: 'emoji', label: { emoji: '🌟' } };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('🌟');
+    expect(plain).not.toContain('📅');
+  });
+
+  test('hidden mode shows no label but still shows value', () => {
+    const data = createMockUsage({ daily: createQuotaWindow(50, 100) });
+    const result = renderComponent('daily', data, { displayMode: 'hidden' }, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('Daily');
+    expect(plain).not.toContain('D');
+    expect(plain).toContain('50%');
+  });
+});
+
+describe('renderComponent - qualifier labels (Plan B)', () => {
+  test('renders qualifier in standard layout: "Weekly(Opus)"', () => {
+    const data = createMockUsage({
+      weekly: { used: 20, limit: 50, remaining: 30, resetsAt: null, qualifier: 'Opus' },
+    });
+    const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Weekly(Opus)');
+  });
+
+  test('renders qualifier in compact displayMode: "W(O)"', () => {
+    const data = createMockUsage({
+      weekly: { used: 20, limit: 50, remaining: 30, resetsAt: null, qualifier: 'Opus' },
+    });
+    const config: ComponentConfig = { displayMode: 'compact' };
+    const result = renderComponent('weekly', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('W(O)');
+  });
+
+  test('renders no qualifier label in hidden displayMode', () => {
+    const data = createMockUsage({
+      weekly: { used: 20, limit: 50, remaining: 30, resetsAt: null, qualifier: 'Opus' },
+    });
+    const config: ComponentConfig = { displayMode: 'hidden' };
+    const result = renderComponent('weekly', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('Opus');
+    expect(plain).not.toContain('Weekly');
+  });
+
+  test('renders normally without qualifier', () => {
+    const data = createMockUsage({
+      weekly: { used: 20, limit: 50, remaining: 30, resetsAt: null },
+    });
+    const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).toContain('Weekly');
+    expect(plain).not.toContain('(');
+  });
+
+  test('nerd font fallback: uses bar when nerd fonts unavailable', () => {
     const data = createMockUsage({
       daily: createQuotaWindow(50, 100),
     });
-    const config: ComponentConfig = {
-      displayMode: 'icon-pct',
-      label: { text: 'Today' }, // No icon
-    };
-    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    // RenderContext with nerdFontAvailable: false
+    const renderContext = { colorMode: 'truecolor' as const, nerdFontAvailable: false, isPiped: true };
+    const result = renderComponent('daily', data, { progressStyle: 'icon' }, DEFAULT_CONFIG, renderContext);
     const plain = stripAnsi(result ?? '');
-    expect(plain).toContain('Today'); // Text label should be used
+    // Should fall back to bar mode, so no nerd font icons
+    expect(plain).not.toMatch(/[\u{F0130}-\u{F0AA5}]/u);
   });
 });
