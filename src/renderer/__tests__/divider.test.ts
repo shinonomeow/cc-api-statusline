@@ -9,22 +9,28 @@ import { stripAnsi } from '../colors.js';
 describe('renderDivider', () => {
   test('renders default divider (|, 1 space padding)', () => {
     const result = renderDivider({});
-    expect(result).toBe(' | ');
+    // Default color is cc-statusline brightBlack, so strip ANSI to check text
+    expect(stripAnsi(result)).toBe(' | ');
+    // Should contain ANSI escape codes for default color
+    expect(result).toContain('\x1b[');
   });
 
   test('renders custom text divider', () => {
     const result = renderDivider({ text: '·', padding: 1 });
-    expect(result).toBe(' · ');
+    expect(stripAnsi(result)).toBe(' · ');
+    expect(result).toContain('\x1b[');
   });
 
   test('renders divider with no padding', () => {
     const result = renderDivider({ text: '|', padding: 0 });
-    expect(result).toBe('|');
+    expect(stripAnsi(result)).toBe('|');
+    expect(result).toContain('\x1b[');
   });
 
   test('renders divider with extra padding', () => {
     const result = renderDivider({ text: '|', padding: 2 });
-    expect(result).toBe('  |  ');
+    expect(stripAnsi(result)).toBe('  |  ');
+    expect(result).toContain('\x1b[');
   });
 
   test('renders divider with color', () => {
@@ -37,7 +43,9 @@ describe('renderDivider', () => {
 
   test('renders empty text divider', () => {
     const result = renderDivider({ text: '', padding: 0 });
-    expect(result).toBe('');
+    // Empty text still gets ANSI codes for color
+    expect(stripAnsi(result)).toBe('');
+    expect(result).toContain('\x1b[');
   });
 });
 

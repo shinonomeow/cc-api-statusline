@@ -19,5 +19,6 @@ export function renderDivider(divider: DividerConfig): string {
   const padding = divider.padding ?? 1;
   const pad = ' '.repeat(padding);
   const padded = `${pad}${text}${pad}`;
-  return divider.color ? ansiColor(padded, divider.color) : padded;
+  // Default to cc-statusline's brightBlack color (#555753)
+  return ansiColor(padded, divider.color ?? '#555753');
 }

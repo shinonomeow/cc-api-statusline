@@ -513,7 +513,7 @@ bun run start
 bun run example
 
 # Run tests
-bun test
+bun run test
 
 # Lint
 bun run lint
@@ -577,7 +577,7 @@ bun run check
 
 ## Testing
 
-- **550 tests** across **34 test files**
+- **578 tests** across **34 test files**
 - Unit tests for all services, renderers, and shared utilities
 - Core execution path tests (A/B/C/D)
 - E2E smoke tests with isolated environments

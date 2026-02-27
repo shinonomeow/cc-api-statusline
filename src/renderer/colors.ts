@@ -41,11 +41,11 @@ const ANSI_COLORS: Record<string, string> = {
  * These resolve to hex colors and get rendered as truecolor ANSI
  */
 const THEME_COLORS: Record<string, string> = {
-  cool: '#00D9FF',
-  comfortable: '#4ADE80',
-  warm: '#FDE047',
-  hot: '#FB923C',
-  critical: '#F87171',
+  cool: '#56B6C2',
+  comfortable: '#6BAF8D',
+  warm: '#C9A84C',
+  hot: '#CB7E55',
+  critical: '#C96B6B',
 };
 
 /**

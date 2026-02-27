@@ -45,34 +45,34 @@ describe('ansiColor', () => {
 
 describe('ansiColor - theme colors', () => {
   test('resolves "cool" theme color to truecolor ANSI', () => {
-    // cool = #00D9FF = rgb(0, 217, 255)
-    expect(ansiColor('text', 'cool')).toBe('\x1b[38;2;0;217;255mtext\x1b[0m');
+    // cool = #56B6C2 = rgb(86, 182, 194)
+    expect(ansiColor('text', 'cool')).toBe('\x1b[38;2;86;182;194mtext\x1b[0m');
   });
 
   test('resolves "comfortable" theme color to truecolor ANSI', () => {
-    // comfortable = #4ADE80 = rgb(74, 222, 128)
-    expect(ansiColor('text', 'comfortable')).toBe('\x1b[38;2;74;222;128mtext\x1b[0m');
+    // comfortable = #6BAF8D = rgb(107, 175, 141)
+    expect(ansiColor('text', 'comfortable')).toBe('\x1b[38;2;107;175;141mtext\x1b[0m');
   });
 
   test('resolves "warm" theme color to truecolor ANSI', () => {
-    // warm = #FDE047 = rgb(253, 224, 71)
-    expect(ansiColor('text', 'warm')).toBe('\x1b[38;2;253;224;71mtext\x1b[0m');
+    // warm = #C9A84C = rgb(201, 168, 76)
+    expect(ansiColor('text', 'warm')).toBe('\x1b[38;2;201;168;76mtext\x1b[0m');
   });
 
   test('resolves "hot" theme color to truecolor ANSI', () => {
-    // hot = #FB923C = rgb(251, 146, 60)
-    expect(ansiColor('text', 'hot')).toBe('\x1b[38;2;251;146;60mtext\x1b[0m');
+    // hot = #CB7E55 = rgb(203, 126, 85)
+    expect(ansiColor('text', 'hot')).toBe('\x1b[38;2;203;126;85mtext\x1b[0m');
   });
 
   test('resolves "critical" theme color to truecolor ANSI', () => {
-    // critical = #F87171 = rgb(248, 113, 113)
-    expect(ansiColor('text', 'critical')).toBe('\x1b[38;2;248;113;113mtext\x1b[0m');
+    // critical = #C96B6B = rgb(201, 107, 107)
+    expect(ansiColor('text', 'critical')).toBe('\x1b[38;2;201;107;107mtext\x1b[0m');
   });
 
   test('theme colors are case-insensitive', () => {
-    expect(ansiColor('text', 'Cool')).toBe('\x1b[38;2;0;217;255mtext\x1b[0m');
-    expect(ansiColor('text', 'CRITICAL')).toBe('\x1b[38;2;248;113;113mtext\x1b[0m');
-    expect(ansiColor('text', 'WaRm')).toBe('\x1b[38;2;253;224;71mtext\x1b[0m');
+    expect(ansiColor('text', 'Cool')).toBe('\x1b[38;2;86;182;194mtext\x1b[0m');
+    expect(ansiColor('text', 'CRITICAL')).toBe('\x1b[38;2;201;107;107mtext\x1b[0m');
+    expect(ansiColor('text', 'WaRm')).toBe('\x1b[38;2;201;168;76mtext\x1b[0m');
   });
 });
 
