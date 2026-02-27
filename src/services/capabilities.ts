@@ -41,8 +41,8 @@ const NERD_TERMINALS = ['iTerm.app', 'WezTerm', 'Alacritty', 'kitty', 'Hyper'];
  * 5. Default → truecolor (most modern dev terminals support it)
  */
 export function detectColorMode(): '16' | '256' | 'truecolor' {
-  // NO_COLOR spec: disable all color
-  if (process.env['NO_COLOR'] !== undefined && process.env['NO_COLOR'] !== '') {
+  // NO_COLOR spec: disable all color when present (regardless of value)
+  if (process.env['NO_COLOR'] !== undefined) {
     return '16';
   }
 

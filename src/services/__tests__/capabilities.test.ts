@@ -38,9 +38,8 @@ describe('detectColorMode', () => {
 
   test('returns 16 when NO_COLOR is empty string', () => {
     process.env['NO_COLOR'] = '';
-    // Empty NO_COLOR should NOT disable (it's unset-equivalent)
-    // Per NO_COLOR spec, only non-empty NO_COLOR disables color
-    expect(detectColorMode()).not.toBe('16');
+    // Per NO_COLOR spec: presence disables color (regardless of value)
+    expect(detectColorMode()).toBe('16');
   });
 
   test('returns truecolor when COLORTERM=truecolor', () => {
