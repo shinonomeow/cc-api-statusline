@@ -46,3 +46,27 @@ export const GC_MAX_CACHE_FILES = 20;
  * Maximum age for orphaned .tmp files before deletion (1 hour)
  */
 export const GC_ORPHAN_TMP_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Log rotation (debug mode only)
+ */
+
+/**
+ * Probability of running rotation checks on any given invocation (1/20)
+ */
+export const LOG_ROTATION_PROBABILITY = 0.05;
+
+/**
+ * Maximum log file size before rotation (500 KB)
+ */
+export const LOG_MAX_SIZE_BYTES = 512 * 1024;
+
+/**
+ * Maximum log file age before rotation and gzip compression (24 hours)
+ */
+export const LOG_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Maximum age for compressed log archives before deletion (3 days)
+ */
+export const LOG_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
