@@ -113,7 +113,7 @@ export interface ColorTier {
  * Tiered color alias entry (5-tier format)
  */
 export interface ColorTieredEntry {
-  tiers: ColorTier[];
+  tiers: readonly ColorTier[];
 }
 
 /**
@@ -211,7 +211,7 @@ export function buildTiers(
       `buildTiers: colors.length (${colors.length}) must equal thresholds.length (${thresholds.length})`
     );
   }
-  return colors.map((color, i) => ({ color, maxPercent: thresholds[i] }));
+  return colors.map((color, i) => ({ color, maxPercent: thresholds[i]! }));
 }
 
 /**
