@@ -174,7 +174,7 @@ describe('config service', () => {
 
       // Defaults should be preserved
       expect(config.colors?.['auto']).toEqual(DEFAULT_CONFIG.colors?.['auto']);
-      expect(config.display.separator).toBe(DEFAULT_CONFIG.display.separator);
+      expect(config.display.divider).toEqual(DEFAULT_CONFIG.display.divider);
     });
   });
 

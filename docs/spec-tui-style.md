@@ -58,7 +58,7 @@ Set once, inherited by all components unless overridden per-component:
     "displayMode": "bar",
     "barSize":     "medium",
     "barStyle":    "classic",
-    "separator":   " | ",
+    "divider":     { "text": "|", "margin": 1, "color": "#555753" },
     "maxWidth":    80,
     "clockFormat": "24h"
   }
@@ -71,7 +71,7 @@ Set once, inherited by all components unless overridden per-component:
 | `displayMode` | `bar` / `percentage` / `icon-pct` | `bar` | How usage fraction is visualized |
 | `barSize` | `small`(4) / `small-medium`(6) / `medium`(8) / `medium-large`(10) / `large`(12) | `medium` | Bar character width |
 | `barStyle` | name or `{ fill, empty }` | `classic` | Bar character style (see below) |
-| `separator` | string | `" \| "` | Between components |
+| `divider` | `DividerConfig` or `false` | `{ text: "\|", margin: 1, color: "#555753" }` | Between components; `false` disables |
 | `maxWidth` | 20–100 | 80 | % of terminal width |
 | `clockFormat` | `12h` / `24h` | `24h` | For countdown time display |
 

@@ -144,7 +144,7 @@ Some API providers restrict requests to only come from Claude Code clients. Enab
     "displayMode": "bar",
     "barSize": "medium",
     "barStyle": "classic",
-    "separator": " | ",
+    "divider": { "text": "|", "margin": 1, "color": "#555753" },
     "maxWidth": 80,
     "clockFormat": "24h"
   },

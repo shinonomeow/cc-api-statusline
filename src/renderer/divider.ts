@@ -2,7 +2,7 @@
  * Divider Rendering
  *
  * Renders configurable dividers between statusline components.
- * Supports text, padding, and color options.
+ * Supports text, margin, and color options.
  */
 
 import type { DividerConfig } from '../types/config.js';
@@ -16,8 +16,8 @@ import { ansiColor } from './colors.js';
  */
 export function renderDivider(divider: DividerConfig): string {
   const text = divider.text ?? '|';
-  const padding = divider.padding ?? 1;
-  const pad = ' '.repeat(padding);
+  const margin = divider.margin ?? 1;
+  const pad = ' '.repeat(margin);
   const padded = `${pad}${text}${pad}`;
   // Default to cc-statusline's brightBlack color (#555753)
   return ansiColor(padded, divider.color ?? '#555753');

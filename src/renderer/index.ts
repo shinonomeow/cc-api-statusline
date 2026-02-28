@@ -18,7 +18,7 @@ import {
   visibleLength,
   COMPONENT_DROP_PRIORITY,
 } from './truncate.js';
-import { DEFAULT_COMPONENT_ORDER } from '../types/config.js';
+import { DEFAULT_COMPONENT_ORDER, DEFAULT_DIVIDER_CONFIG } from '../types/config.js';
 import { renderDivider } from './divider.js';
 import { createRenderContext } from './context.js';
 
@@ -70,7 +70,7 @@ export function renderStatusline(
     }
   }
 
-  // Compute separator string from components.divider config
+  // Compute separator string from display.divider config
   const separator = computeSeparator(config);
 
   // Intelligent component dropping — drop lowest-priority components until we fit
@@ -125,17 +125,14 @@ export function renderStatusline(
 /**
  * Compute the separator string used between rendered components.
  *
- * Priority:
- * 1. components.divider is a DividerConfig object → use renderDivider()
- * 2. components.divider is false → no separator
- * 3. components.divider is true or unset → use display.separator (default: ' | ')
+ * Source: display.divider (single source of truth)
+ * - false → no separator
+ * - DividerConfig or undefined → renderDivider with defaults
  */
 function computeSeparator(config: Config): string {
-  const dividerConfig = config.components.divider;
+  const dividerConfig = config.display.divider;
   if (dividerConfig === false) return '';
-  if (typeof dividerConfig === 'object') return renderDivider(dividerConfig);
-  // true or undefined → fall back to display.separator
-  return config.display.separator ?? ' | ';
+  return renderDivider(dividerConfig ?? DEFAULT_DIVIDER_CONFIG);
 }
 
 /**
@@ -188,7 +185,6 @@ function calculateStatuslineWidth(
  * - Components explicitly listed in config.components are rendered in that order
  * - Components omitted from config are appended in default order
  * - Components set to false are excluded
- * - 'divider' is a config-only key, not rendered as a component
  */
 function getComponentOrder(config: Config): ComponentId[] {
   const explicitOrder: ComponentId[] = [];
@@ -214,7 +210,6 @@ function getComponentOrder(config: Config): ComponentId[] {
 
 /**
  * Type guard: check if string is a renderable ComponentId
- * 'divider' is excluded — it's config-only, not rendered directly
  */
 function isComponentId(key: string): key is ComponentId {
   return DEFAULT_COMPONENT_ORDER.includes(key as ComponentId);

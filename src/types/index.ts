@@ -23,6 +23,7 @@ export type {
   ComponentConfig,
   ComponentsConfig,
   CountdownConfig,
+  DividerConfig,
   LabelConfig,
   PartColors,
   ColorAliasEntry,
@@ -37,6 +38,7 @@ export type {
 
 export {
   DEFAULT_CONFIG,
+  DEFAULT_DIVIDER_CONFIG,
   BAR_SIZE_MAP,
   BUILT_IN_BAR_STYLES,
   COMPONENT_SHORT_LABELS,

@@ -118,7 +118,7 @@ Implementation: `src/services/user-agent.ts`
 - `display.displayMode`: `bar`
 - `display.barSize`: `medium`
 - `display.barStyle`: `classic`
-- `display.separator`: ` | `
+- `display.divider`: `{ text: '|', margin: 1, color: '#555753' }`
 - `display.maxWidth`: `80` (percentage of terminal width)
 - `display.clockFormat`: `24h`
 - `pollIntervalSeconds`: `30`

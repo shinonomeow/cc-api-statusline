@@ -180,8 +180,8 @@ describe('renderStatusline', () => {
     });
   });
 
-  describe('separator configuration', () => {
-    test('uses default separator', () => {
+  describe('divider configuration', () => {
+    test('uses default divider', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
         weekly: createQuotaWindow(50, 200),
@@ -190,10 +190,10 @@ describe('renderStatusline', () => {
       const result = renderStatusline(data, DEFAULT_CONFIG);
       const plain = stripAnsi(result);
 
-      expect(plain).toContain('|'); // Default separator is " | "
+      expect(plain).toContain('|'); // Default divider text is '|'
     });
 
-    test('uses custom separator', () => {
+    test('uses custom divider', () => {
       const data = createMockUsage({
         daily: createQuotaWindow(24, 100),
         weekly: createQuotaWindow(50, 200),
@@ -203,15 +203,38 @@ describe('renderStatusline', () => {
         ...DEFAULT_CONFIG,
         display: {
           ...DEFAULT_CONFIG.display,
-          separator: ' • ',
+          divider: { text: '·', margin: 1 },
         },
       };
 
       const result = renderStatusline(data, config);
       const plain = stripAnsi(result);
 
-      expect(plain).toContain('•');
+      expect(plain).toContain('·');
       expect(plain).not.toContain('|');
+    });
+
+    test('disables divider when false', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(24, 100),
+        weekly: createQuotaWindow(50, 200),
+      });
+
+      const config: Config = {
+        ...DEFAULT_CONFIG,
+        display: {
+          ...DEFAULT_CONFIG.display,
+          divider: false,
+        },
+      };
+
+      const result = renderStatusline(data, config);
+      const plain = stripAnsi(result);
+
+      expect(plain).not.toContain('|');
+      // Both components should still be present
+      expect(plain).toContain('Daily');
+      expect(plain).toContain('Weekly');
     });
   });
 
@@ -279,7 +302,6 @@ describe('renderStatusline', () => {
             progressStyle: 'bar', // Use bar mode so each component is wide enough to require truncation
             barStyle: 'classic',
             maxWidth: 40, // 40% of 50 = 20 chars - force hard truncation
-            separator: ' | ',
           },
         };
 

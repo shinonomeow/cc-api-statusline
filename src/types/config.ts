@@ -63,7 +63,7 @@ export type ColorMode = '16' | '256' | 'truecolor' | 'auto';
  */
 export interface DividerConfig {
   text?: string;    // Divider text, default '|'
-  padding?: number; // Spaces on each side, default 1
+  margin?: number;  // Spaces on each side, default 1
   color?: string;   // Optional color name/hex
 }
 
@@ -154,7 +154,6 @@ export interface ComponentsConfig {
   tokens?: boolean | ComponentConfig;
   rateLimit?: boolean | ComponentConfig;
   plan?: boolean | ComponentConfig;
-  divider?: boolean | DividerConfig; // Separator between components; true = use display.separator default
 }
 
 /**
@@ -166,7 +165,7 @@ export interface DisplayConfig {
   progressStyle: ProgressStyle; // Progress indicator: bar | icon | hidden
   barSize: BarSize; // Default: medium
   barStyle: BarStyle; // Default: block
-  separator: string; // Between components, default: " | "
+  divider?: DividerConfig | false; // Between components; false = none, default: { text: '|', margin: 1, color: '#555753' }
   maxWidth: number; // % of terminal width, 20-100, default: 100
   clockFormat: ClockFormat; // 12h or 24h, default: 24h
   colorMode?: ColorMode; // Color rendering mode, default: 'auto'
@@ -189,6 +188,11 @@ export interface Config {
 }
 
 /**
+ * Default divider config (single source of truth for fallback)
+ */
+export const DEFAULT_DIVIDER_CONFIG: DividerConfig = { text: '|', margin: 1, color: '#555753' };
+
+/**
  * Default configuration
  */
 export const DEFAULT_CONFIG: Config = {
@@ -198,7 +202,7 @@ export const DEFAULT_CONFIG: Config = {
     progressStyle: 'icon',
     barSize: 'medium',
     barStyle: 'block',
-    separator: ' | ',
+    divider: DEFAULT_DIVIDER_CONFIG,
     maxWidth: 100,
     clockFormat: '24h',
     colorMode: 'auto',
@@ -212,7 +216,6 @@ export const DEFAULT_CONFIG: Config = {
     tokens: false,
     rateLimit: false,
     plan: false,
-    divider: true,
   },
   colors: {
     auto: {
