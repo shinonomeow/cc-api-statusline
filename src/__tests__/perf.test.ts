@@ -245,9 +245,9 @@ describe('Performance Tests (CLI with Node.js startup overhead)', () => {
 
       const elapsed = Date.now() - startTime;
 
-      // Should produce output (timeout error)
+      // Should produce output (watchdog fires when budget is exhausted)
       expect(stdout.length).toBeGreaterThan(0);
-      expect(stdout).toContain('Fetching'); // Timeout error message
+      expect(stdout).toContain('Refreshing'); // Watchdog timeout message
       expect(exitCode).toBe(0);
 
       // Should complete quickly

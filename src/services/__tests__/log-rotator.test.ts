@@ -62,7 +62,7 @@ describe('maybeRotateLogs', () => {
 
   it('handles missing log file gracefully', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.01);
-    expect(() => maybeRotateLogs(logPath)).not.toThrow();
+    expect(() => { maybeRotateLogs(logPath); }).not.toThrow();
   });
 
   // No rotation

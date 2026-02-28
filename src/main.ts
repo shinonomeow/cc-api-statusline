@@ -78,6 +78,11 @@ async function main(): Promise<void> {
   await executePipedMode(args);
 }
 
+// SIGTERM is catchable (unlike SIGKILL) — exit cleanly to avoid error indicators
+process.on('SIGTERM', () => {
+  process.exit(0);
+});
+
 // Belt-and-suspenders: catch any synchronous throws that bypass main().catch()
 // (e.g. unexpected EventEmitter error events on other streams)
 process.on('uncaughtException', (error: Error) => {

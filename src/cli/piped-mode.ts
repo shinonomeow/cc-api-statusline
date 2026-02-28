@@ -13,13 +13,14 @@ import type { EndpointConfigRegistry } from '../types/index.js';
 import type { EndpointLockEntry } from '../services/endpoint-lock.js';
 import type { ErrorState } from '../renderer/error.js';
 import { readCurrentEnv, validateRequiredEnv } from '../services/env.js';
-import { readCache, writeCache, computeConfigHash, getCacheDir } from '../services/cache.js';
+import { readCache, writeCache, computeConfigHash, getCacheDir, isCacheValid } from '../services/cache.js';
 import { loadConfig, getConfigPath } from '../services/config.js';
 import { loadEndpointConfigs, computeEndpointConfigHash } from '../services/endpoint-config.js';
 import { readEndpointLock, writeEndpointLock } from '../services/endpoint-lock.js';
 import { needsConfigInit, writeDefaultConfigs } from '../services/config-defaults.js';
 import { resolveProvider, getProvider } from '../providers/index.js';
 import { renderError } from '../renderer/error.js';
+import { dimText } from '../renderer/colors.js';
 import { executeCycle } from '../core/index.js';
 import { logger } from '../services/logger.js';
 import { runCacheGC } from '../services/cache-gc.js';
@@ -128,20 +129,39 @@ function computeTimeoutBudgets(isPiped: boolean, config: Config, timeoutMs: numb
 async function buildExecutionContext(
   args: ParsedArgs,
   isPiped: boolean,
-  startTime: number
+  startTime: number,
+  rawTimeoutMs: number
 ): Promise<{ ctx: ExecutionContext; baseUrl: string }> {
   const { env, baseUrl } = readAndValidateEnv();
   ensureDefaultConfigs();
   const { config, configHash } = loadConfigWithHash(args.configPath);
   const { endpointConfigs, endpointConfigHash } = loadEndpointConfigsWithHash();
   const endpointLock = resolveEndpointLock(endpointConfigHash);
-  const rawTimeoutMs = Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000);
-  const { providerId, provider } = await resolveProviderWithTimeout(baseUrl, env, endpointConfigs, isPiped, rawTimeoutMs);
+
+  // Cache-first: read cache before probing provider — saves up to 800ms on warm cache
   const cachedEntry = readCache(baseUrl);
   logger.debug('Cache read', {
     cacheHit: !!cachedEntry,
     cacheAge: cachedEntry ? `${Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 1000)}s` : 'N/A'
   });
+
+  let providerId: string;
+  let provider: NonNullable<ReturnType<typeof getProvider>>;
+
+  if (cachedEntry && isCacheValid(cachedEntry, env)) {
+    const cachedProvider = getProvider(cachedEntry.provider, endpointConfigs);
+    if (cachedProvider) {
+      // Fast path: cache is valid and provider is known — skip the health probe
+      providerId = cachedEntry.provider;
+      provider = cachedProvider;
+      logger.debug('Cache-first: skipping provider probe', { providerId });
+    } else {
+      ({ providerId, provider } = await resolveProviderWithTimeout(baseUrl, env, endpointConfigs, isPiped, rawTimeoutMs));
+    }
+  } else {
+    ({ providerId, provider } = await resolveProviderWithTimeout(baseUrl, env, endpointConfigs, isPiped, rawTimeoutMs));
+  }
+
   const { timeoutBudgetMs, fetchTimeoutMs } = computeTimeoutBudgets(isPiped, config, rawTimeoutMs);
 
   const ctx: ExecutionContext = {
@@ -200,11 +220,27 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
   const isPiped = !process.stdin.isTTY;
   logger.debug('Mode detection', { isPiped, once: args.once });
 
+  // Read timeout early — needed for both watchdog and buildExecutionContext
+  const rawTimeoutMs = Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000);
+
+  // Watchdog timer: exit cleanly before Claude Code's SIGKILL deadline
+  // Fires rawTimeoutMs-100ms after start, rendering a friendly "Refreshing..." indicator
+  if (isPiped) {
+    const watchdogMs = rawTimeoutMs - 100;
+    setTimeout(() => {
+      logger.error('Watchdog timeout - forcing clean exit', { watchdogMs });
+      const fallback = dimText('\u27F3 Refreshing...');
+      const formatted = formatOutput(fallback, isPiped);
+      process.stdout.write(formatted);
+      process.exit(0);
+    }, watchdogMs).unref();
+  }
+
   // Build execution context
   let ctx: ExecutionContext;
   let baseUrl: string;
   try {
-    ({ ctx, baseUrl } = await buildExecutionContext(args, isPiped, startTime));
+    ({ ctx, baseUrl } = await buildExecutionContext(args, isPiped, startTime, rawTimeoutMs));
   } catch (error: unknown) {
     logger.error('Failed to build execution context', { error: String(error) });
     const errorType = error instanceof StatuslineError ? error.errorType : 'network-error';
