@@ -149,8 +149,13 @@ export function saveConfig(config: Config, configPath?: string): void {
   // Ensure directory exists
   ensureConfigDir();
 
+  // Exclude colors from serialization — colors are derived at runtime from the
+  // theme and must not be persisted, otherwise a stale override re-introduced
+  // here would shadow future theme changes.
+  const { colors: _colors, ...configWithoutColors } = config as Config & { colors?: unknown };
+
   // Write atomically
-  const content = JSON.stringify(config, null, 2);
+  const content = JSON.stringify(configWithoutColors, null, 2);
 
   try {
     atomicWriteFile(path, content);
