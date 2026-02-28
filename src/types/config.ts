@@ -240,69 +240,13 @@ export const DEFAULT_CONFIG: Config = {
     plan: false,
   },
   colors: {
-    auto: {
-      tiers: [
-        { color: 'cool', maxPercent: 37.5 },
-        { color: 'comfortable', maxPercent: 62.5 },
-        { color: 'warm', maxPercent: 75 },
-        { color: 'hot', maxPercent: 85 },
-        { color: 'critical', maxPercent: 92.5 },
-      ],
-    },
-    vibrant: {
-      tiers: [
-        { color: '#00D9FF', maxPercent: 37.5 },
-        { color: '#4ADE80', maxPercent: 62.5 },
-        { color: '#FDE047', maxPercent: 75 },
-        { color: '#FB923C', maxPercent: 85 },
-        { color: '#F87171', maxPercent: 92.5 },
-      ],
-    },
-    pastel: {
-      tiers: [
-        { color: 'pastel-cool', maxPercent: 37.5 },
-        { color: 'pastel-comfortable', maxPercent: 62.5 },
-        { color: 'pastel-medium', maxPercent: 75 },
-        { color: 'pastel-warm', maxPercent: 85 },
-        { color: 'pastel-hot', maxPercent: 92.5 },
-      ],
-    },
-    bright: {
-      tiers: [
-        { color: 'bright-cool', maxPercent: 37.5 },
-        { color: 'bright-comfortable', maxPercent: 62.5 },
-        { color: 'bright-medium', maxPercent: 75 },
-        { color: 'bright-warm', maxPercent: 85 },
-        { color: 'bright-hot', maxPercent: 92.5 },
-      ],
-    },
-    ocean: {
-      tiers: [
-        { color: 'ocean-cool', maxPercent: 37.5 },
-        { color: 'ocean-comfortable', maxPercent: 62.5 },
-        { color: 'ocean-medium', maxPercent: 75 },
-        { color: 'ocean-warm', maxPercent: 85 },
-        { color: 'ocean-hot', maxPercent: 92.5 },
-      ],
-    },
-    neutral: {
-      tiers: [
-        { color: 'neutral-cool', maxPercent: 37.5 },
-        { color: 'neutral-comfortable', maxPercent: 62.5 },
-        { color: 'neutral-warm', maxPercent: 75 },
-        { color: 'neutral-hot', maxPercent: 85 },
-        { color: 'neutral-critical', maxPercent: 92.5 },
-      ],
-    },
-    chill: {
-      tiers: [
-        { color: 'cyan', maxPercent: 37.5 },
-        { color: 'cyan', maxPercent: 62.5 },
-        { color: 'blue', maxPercent: 75 },
-        { color: 'blue', maxPercent: 87.5 },
-        { color: 'magenta', maxPercent: 92.5 },
-      ],
-    },
+    auto:    { tiers: buildTiers(['cool', 'comfortable', 'warm', 'hot', 'critical']) },
+    vibrant: { tiers: buildTiers(['#00D9FF', '#4ADE80', '#FDE047', '#FB923C', '#F87171']) },
+    pastel:  { tiers: buildTiers(['pastel-cool', 'pastel-comfortable', 'pastel-medium', 'pastel-warm', 'pastel-hot']) },
+    bright:  { tiers: buildTiers(['bright-cool', 'bright-comfortable', 'bright-medium', 'bright-warm', 'bright-hot']) },
+    ocean:   { tiers: buildTiers(['ocean-cool', 'ocean-comfortable', 'ocean-medium', 'ocean-warm', 'ocean-hot']) },
+    neutral: { tiers: buildTiers(['neutral-cool', 'neutral-comfortable', 'neutral-warm', 'neutral-hot', 'neutral-critical']) },
+    chill:   { tiers: buildTiers(['cyan', 'cyan', 'blue', 'blue', 'magenta']) },
   },
   pollIntervalSeconds: 30,
   pipedRequestTimeoutMs: 800,
