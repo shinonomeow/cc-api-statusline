@@ -50,12 +50,12 @@ vi.mock('../../services/endpoint-lock.js', () => ({
 }));
 
 vi.mock('../../providers/index.js', () => ({
-  resolveProvider: vi.fn(async () => 'anthropic'),
-  getProvider: vi.fn(() => ({ fetch: vi.fn(async () => ({ output: 'test', exitCode: 0, cacheUpdate: null })) })),
+  resolveProvider: vi.fn(() => Promise.resolve('anthropic')),
+  getProvider: vi.fn(() => ({ fetch: vi.fn(() => Promise.resolve({ output: 'test', exitCode: 0, cacheUpdate: null })) })),
 }));
 
 vi.mock('../../core/index.js', () => ({
-  executeCycle: vi.fn(async () => ({ output: 'test output', exitCode: 0, cacheUpdate: null })),
+  executeCycle: vi.fn(() => Promise.resolve({ output: 'test output', exitCode: 0, cacheUpdate: null })),
 }));
 
 vi.mock('../../services/logger.js', () => ({
@@ -141,10 +141,11 @@ describe('executePipedMode', () => {
 
       await expect(executePipedMode(minimalArgs())).rejects.toThrow('process.exit(0)');
 
-      expect((logger.logger as { error: MockedFunction<() => void> }).error).toHaveBeenCalledWith(
-        'Failed to build execution context',
-        expect.objectContaining({ error: expect.stringContaining('ENOSPC') })
-      );
+      const loggerMock = logger.logger as { error: MockedFunction<() => void> };
+      const errorCall = loggerMock.error.mock.calls[0];
+      expect(errorCall?.[0]).toBe('Failed to build execution context');
+      const errArg = errorCall?.[1] as Record<string, string>;
+      expect(errArg?.['error']).toContain('ENOSPC');
     });
 
     it('does not propagate the thrown error to the caller', async () => {
@@ -154,7 +155,7 @@ describe('executePipedMode', () => {
       });
 
       // The only rejection should be our mocked process.exit, not the original error
-      const rejection = await executePipedMode(minimalArgs()).catch((e: Error) => e);
+      const rejection = await executePipedMode(minimalArgs()).catch((e: unknown) => e as Error);
       expect(rejection.message).toContain('process.exit(0)');
       expect(rejection.message).not.toContain('Unexpected I/O error');
     });

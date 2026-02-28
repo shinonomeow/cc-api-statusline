@@ -7,6 +7,11 @@
 
 import type { ParsedArgs } from './args.js';
 import type { ExecutionContext } from '../core/index.js';
+import type { Config } from '../types/config.js';
+import type { EnvSnapshot } from '../services/env.js';
+import type { EndpointConfigRegistry } from '../types/index.js';
+import type { EndpointLockEntry } from '../services/endpoint-lock.js';
+import type { ErrorState } from '../renderer/error.js';
 import { readCurrentEnv, validateRequiredEnv } from '../services/env.js';
 import { readCache, writeCache, computeConfigHash, getCacheDir } from '../services/cache.js';
 import { loadConfig, getConfigPath } from '../services/config.js';
@@ -19,7 +24,13 @@ import { executeCycle } from '../core/index.js';
 import { logger } from '../services/logger.js';
 import { runCacheGC } from '../services/cache-gc.js';
 
-function readAndValidateEnv(): { env: ReturnType<typeof readCurrentEnv>; baseUrl: string; authToken: string } {
+class StatuslineError extends Error {
+  constructor(public readonly errorType: ErrorState) {
+    super(errorType);
+  }
+}
+
+function readAndValidateEnv(): { env: EnvSnapshot; baseUrl: string } {
   const env = readCurrentEnv();
   logger.debug('Environment loaded', {
     baseUrl: env.baseUrl ? `${env.baseUrl.substring(0, 30)}...` : undefined,
@@ -30,17 +41,15 @@ function readAndValidateEnv(): { env: ReturnType<typeof readCurrentEnv>; baseUrl
 
   const envError = validateRequiredEnv(env);
   if (envError) {
-    const errorOutput = renderError('missing-env', 'without-cache');
-    process.stdout.write(errorOutput);
-    process.exit(0);
+    throw new StatuslineError('missing-env');
   }
 
-  const { baseUrl, authToken } = env;
-  if (!baseUrl || !authToken) {
+  const { baseUrl } = env;
+  if (!baseUrl) {
     process.exit(1);
   }
 
-  return { env, baseUrl, authToken };
+  return { env, baseUrl };
 }
 
 function ensureDefaultConfigs(): void {
@@ -50,15 +59,15 @@ function ensureDefaultConfigs(): void {
   }
 }
 
-function loadConfigWithHash(configPath?: string): { config: ReturnType<typeof loadConfig>; configPath: string; configHash: string } {
+function loadConfigWithHash(configPath?: string): { config: Config; configHash: string } {
   const config = loadConfig(configPath);
   const resolvedPath = getConfigPath(configPath);
   const configHash = computeConfigHash(resolvedPath);
   logger.debug('Config loaded', { configPath: resolvedPath, configHash });
-  return { config, configPath: resolvedPath, configHash };
+  return { config, configHash };
 }
 
-function loadEndpointConfigsWithHash(): { endpointConfigs: ReturnType<typeof loadEndpointConfigs>; endpointConfigHash: string } {
+function loadEndpointConfigsWithHash(): { endpointConfigs: EndpointConfigRegistry; endpointConfigHash: string } {
   const endpointConfigs = loadEndpointConfigs();
   const endpointConfigHash = computeEndpointConfigHash();
   logger.debug('Endpoint configs loaded', {
@@ -68,30 +77,30 @@ function loadEndpointConfigsWithHash(): { endpointConfigs: ReturnType<typeof loa
   return { endpointConfigs, endpointConfigHash };
 }
 
-function resolveEndpointLock(hash: string): ReturnType<typeof readEndpointLock> {
-  let endpointLock = readEndpointLock();
-  if (!endpointLock) {
-    logger.debug('Endpoint lock file missing - creating with current hash');
-    writeEndpointLock(hash);
-    endpointLock = { hash, lockedAt: new Date().toISOString() };
-  } else {
+function resolveEndpointLock(hash: string): EndpointLockEntry {
+  const existing = readEndpointLock();
+  if (existing) {
     logger.debug('Endpoint lock file loaded', {
-      lockedHash: endpointLock.hash,
+      lockedHash: existing.hash,
       currentHash: hash,
-      locked: endpointLock.hash === hash
+      locked: existing.hash === hash
     });
+    return existing;
   }
-  return endpointLock;
+  logger.debug('Endpoint lock file missing - creating with current hash');
+  writeEndpointLock(hash);
+  return { hash, lockedAt: new Date().toISOString() };
 }
 
 async function resolveProviderWithTimeout(
   baseUrl: string,
-  env: ReturnType<typeof readCurrentEnv>,
-  endpointConfigs: ReturnType<typeof loadEndpointConfigs>,
-  isPiped: boolean
+  env: EnvSnapshot,
+  endpointConfigs: EndpointConfigRegistry,
+  isPiped: boolean,
+  timeoutMs: number
 ): Promise<{ providerId: string; provider: NonNullable<ReturnType<typeof getProvider>> }> {
   const probeTimeout = isPiped
-    ? Math.min(1500, Math.max(200, Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000) - 200))
+    ? Math.min(1500, Math.max(200, timeoutMs - 200))
     : 3000;
   const providerId = await resolveProvider(baseUrl, env.providerOverride, endpointConfigs, probeTimeout);
   const provider = getProvider(providerId, endpointConfigs);
@@ -99,18 +108,14 @@ async function resolveProviderWithTimeout(
 
   if (!provider) {
     logger.error('Provider not found', { providerId });
-    const errorOutput = renderError('provider-unknown', 'without-cache');
-    process.stdout.write(errorOutput);
-    process.exit(0);
+    throw new StatuslineError('provider-unknown');
   }
 
   return { providerId, provider };
 }
 
-function computeTimeoutBudgets(isPiped: boolean, config: ReturnType<typeof loadConfig>): { timeoutBudgetMs: number; fetchTimeoutMs: number } {
-  const timeoutBudgetMs = isPiped
-    ? Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000)
-    : 10000;
+function computeTimeoutBudgets(isPiped: boolean, config: Config, timeoutMs: number): { timeoutBudgetMs: number; fetchTimeoutMs: number } {
+  const timeoutBudgetMs = isPiped ? timeoutMs : 10000;
   const fetchTimeoutMs = isPiped
     ? Math.min(config.pipedRequestTimeoutMs ?? 800, timeoutBudgetMs - 100)
     : 10000;
@@ -130,13 +135,14 @@ async function buildExecutionContext(
   const { config, configHash } = loadConfigWithHash(args.configPath);
   const { endpointConfigs, endpointConfigHash } = loadEndpointConfigsWithHash();
   const endpointLock = resolveEndpointLock(endpointConfigHash);
-  const { providerId, provider } = await resolveProviderWithTimeout(baseUrl, env, endpointConfigs, isPiped);
+  const rawTimeoutMs = Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000);
+  const { providerId, provider } = await resolveProviderWithTimeout(baseUrl, env, endpointConfigs, isPiped, rawTimeoutMs);
   const cachedEntry = readCache(baseUrl);
   logger.debug('Cache read', {
     cacheHit: !!cachedEntry,
     cacheAge: cachedEntry ? `${Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 1000)}s` : 'N/A'
   });
-  const { timeoutBudgetMs, fetchTimeoutMs } = computeTimeoutBudgets(isPiped, config);
+  const { timeoutBudgetMs, fetchTimeoutMs } = computeTimeoutBudgets(isPiped, config, rawTimeoutMs);
 
   const ctx: ExecutionContext = {
     env,
@@ -201,7 +207,8 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
     ({ ctx, baseUrl } = await buildExecutionContext(args, isPiped, startTime));
   } catch (error: unknown) {
     logger.error('Failed to build execution context', { error: String(error) });
-    const errorOutput = renderError('network-error', 'without-cache');
+    const errorType = error instanceof StatuslineError ? error.errorType : 'network-error';
+    const errorOutput = renderError(errorType, 'without-cache');
     const formattedOutput = formatOutput(errorOutput, isPiped);
     process.stdout.write(formattedOutput);
     logger.debug('=== cc-api-statusline execution completed ===');
