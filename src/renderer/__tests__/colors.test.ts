@@ -50,8 +50,8 @@ describe('ansiColor - theme colors', () => {
   });
 
   test('resolves "comfortable" theme color to truecolor ANSI', () => {
-    // comfortable = #6BAF8D = rgb(107, 175, 141)
-    expect(ansiColor('text', 'comfortable')).toBe('\x1b[38;2;107;175;141mtext\x1b[0m');
+    // comfortable = #5EBE8A = rgb(94, 190, 138)
+    expect(ansiColor('text', 'comfortable')).toBe('\x1b[38;2;94;190;138mtext\x1b[0m');
   });
 
   test('resolves "warm" theme color to truecolor ANSI', () => {
@@ -60,18 +60,18 @@ describe('ansiColor - theme colors', () => {
   });
 
   test('resolves "hot" theme color to truecolor ANSI', () => {
-    // hot = #CB7E55 = rgb(203, 126, 85)
-    expect(ansiColor('text', 'hot')).toBe('\x1b[38;2;203;126;85mtext\x1b[0m');
+    // hot = #D68B45 = rgb(214, 139, 69)
+    expect(ansiColor('text', 'hot')).toBe('\x1b[38;2;214;139;69mtext\x1b[0m');
   });
 
   test('resolves "critical" theme color to truecolor ANSI', () => {
-    // critical = #C96B6B = rgb(201, 107, 107)
-    expect(ansiColor('text', 'critical')).toBe('\x1b[38;2;201;107;107mtext\x1b[0m');
+    // critical = #D45A5A = rgb(212, 90, 90)
+    expect(ansiColor('text', 'critical')).toBe('\x1b[38;2;212;90;90mtext\x1b[0m');
   });
 
   test('theme colors are case-insensitive', () => {
     expect(ansiColor('text', 'Cool')).toBe('\x1b[38;2;86;182;194mtext\x1b[0m');
-    expect(ansiColor('text', 'CRITICAL')).toBe('\x1b[38;2;201;107;107mtext\x1b[0m');
+    expect(ansiColor('text', 'CRITICAL')).toBe('\x1b[38;2;212;90;90mtext\x1b[0m');
     expect(ansiColor('text', 'WaRm')).toBe('\x1b[38;2;201;168;76mtext\x1b[0m');
   });
 });

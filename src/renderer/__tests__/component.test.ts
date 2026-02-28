@@ -545,8 +545,8 @@ describe('renderComponent - per-part coloring', () => {
     };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     expect(result).toBeTruthy();
-    // Should contain critical color (5th tier: #C96B6B = rgb(201, 107, 107))
-    expect(result).toContain('\x1b[38;2;201;107;107m'); // Truecolor ANSI for critical
+    // Should contain critical color (5th tier: #D45A5A = rgb(212, 90, 90))
+    expect(result).toContain('\x1b[38;2;212;90;90m'); // Truecolor ANSI for critical
   });
 });
 

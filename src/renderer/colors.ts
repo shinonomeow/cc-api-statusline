@@ -42,10 +42,10 @@ const ANSI_COLORS: Record<string, string> = {
  */
 const THEME_COLORS: Record<string, string> = {
   cool: '#56B6C2',
-  comfortable: '#6BAF8D',
+  comfortable: '#5EBE8A',
   warm: '#C9A84C',
-  hot: '#CB7E55',
-  critical: '#C96B6B',
+  hot: '#D68B45',
+  critical: '#D45A5A',
 
   // Pastel theme colors (soft, gentle)
   'pastel-cool': '#BAD7F2',        // pale-sky
