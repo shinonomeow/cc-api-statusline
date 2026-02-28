@@ -68,8 +68,8 @@ export function writeDefaultConfigs(customDir?: string): void {
 
   // Write config.json if it doesn't exist
   if (!existsSync(configPath)) {
-    const styleConfig = getDefaultStyleConfig();
-    atomicWriteFile(configPath, JSON.stringify(styleConfig, null, 2), {
+    const { colors: _colors, ...styleConfigWithoutColors } = getDefaultStyleConfig();
+    atomicWriteFile(configPath, JSON.stringify(styleConfigWithoutColors, null, 2), {
       appendNewline: true,
     });
   }
