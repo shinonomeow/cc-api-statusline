@@ -9,6 +9,7 @@ import { appendFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { ensureDir } from './ensure-dir.js';
+import { maybeRotateLogs } from './log-rotator.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -30,6 +31,7 @@ class Logger {
 
     if (this.enabled) {
       this.ensureLogDir();
+      maybeRotateLogs(this.logPath);
     }
   }
 
