@@ -205,7 +205,7 @@ export const DEFAULT_TIER_THRESHOLDS = [37.5, 62.5, 75, 87.5, 100] as const;
 export function buildTiers(
   colors: readonly string[],
   thresholds: readonly number[] = DEFAULT_TIER_THRESHOLDS
-): ColorTier[] {
+): readonly ColorTier[] {
   if (colors.length !== thresholds.length) {
     throw new Error(
       `buildTiers: colors.length (${colors.length}) must equal thresholds.length (${thresholds.length})`
