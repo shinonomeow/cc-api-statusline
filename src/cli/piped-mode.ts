@@ -19,134 +19,140 @@ import { executeCycle } from '../core/index.js';
 import { logger } from '../services/logger.js';
 import { runCacheGC } from '../services/cache-gc.js';
 
+function readAndValidateEnv(): { env: ReturnType<typeof readCurrentEnv>; baseUrl: string; authToken: string } {
+  const env = readCurrentEnv();
+  logger.debug('Environment loaded', {
+    baseUrl: env.baseUrl ? `${env.baseUrl.substring(0, 30)}...` : undefined,
+    hasToken: !!env.authToken,
+    providerOverride: env.providerOverride,
+    pollIntervalOverride: env.pollIntervalOverride
+  });
+
+  const envError = validateRequiredEnv(env);
+  if (envError) {
+    const errorOutput = renderError('missing-env', 'without-cache');
+    process.stdout.write(errorOutput);
+    process.exit(0);
+  }
+
+  const { baseUrl, authToken } = env;
+  if (!baseUrl || !authToken) {
+    process.exit(1);
+  }
+
+  return { env, baseUrl, authToken };
+}
+
+function ensureDefaultConfigs(): void {
+  if (needsConfigInit()) {
+    logger.debug('First run detected - initializing default configs');
+    writeDefaultConfigs();
+  }
+}
+
+function loadConfigWithHash(configPath?: string): { config: ReturnType<typeof loadConfig>; configPath: string; configHash: string } {
+  const config = loadConfig(configPath);
+  const resolvedPath = getConfigPath(configPath);
+  const configHash = computeConfigHash(resolvedPath);
+  logger.debug('Config loaded', { configPath: resolvedPath, configHash });
+  return { config, configPath: resolvedPath, configHash };
+}
+
+function loadEndpointConfigsWithHash(): { endpointConfigs: ReturnType<typeof loadEndpointConfigs>; endpointConfigHash: string } {
+  const endpointConfigs = loadEndpointConfigs();
+  const endpointConfigHash = computeEndpointConfigHash();
+  logger.debug('Endpoint configs loaded', {
+    configCount: Object.keys(endpointConfigs).length,
+    endpointConfigHash
+  });
+  return { endpointConfigs, endpointConfigHash };
+}
+
+function resolveEndpointLock(hash: string): ReturnType<typeof readEndpointLock> {
+  let endpointLock = readEndpointLock();
+  if (!endpointLock) {
+    logger.debug('Endpoint lock file missing - creating with current hash');
+    writeEndpointLock(hash);
+    endpointLock = { hash, lockedAt: new Date().toISOString() };
+  } else {
+    logger.debug('Endpoint lock file loaded', {
+      lockedHash: endpointLock.hash,
+      currentHash: hash,
+      locked: endpointLock.hash === hash
+    });
+  }
+  return endpointLock;
+}
+
+async function resolveProviderWithTimeout(
+  baseUrl: string,
+  env: ReturnType<typeof readCurrentEnv>,
+  endpointConfigs: ReturnType<typeof loadEndpointConfigs>,
+  isPiped: boolean
+): Promise<{ providerId: string; provider: NonNullable<ReturnType<typeof getProvider>> }> {
+  const probeTimeout = isPiped
+    ? Math.min(1500, Math.max(200, Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000) - 200))
+    : 3000;
+  const providerId = await resolveProvider(baseUrl, env.providerOverride, endpointConfigs, probeTimeout);
+  const provider = getProvider(providerId, endpointConfigs);
+  logger.debug('Provider resolved', { providerId, probeTimeout });
+
+  if (!provider) {
+    logger.error('Provider not found', { providerId });
+    const errorOutput = renderError('provider-unknown', 'without-cache');
+    process.stdout.write(errorOutput);
+    process.exit(0);
+  }
+
+  return { providerId, provider };
+}
+
+function computeTimeoutBudgets(isPiped: boolean, config: ReturnType<typeof loadConfig>): { timeoutBudgetMs: number; fetchTimeoutMs: number } {
+  const timeoutBudgetMs = isPiped
+    ? Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000)
+    : 10000;
+  const fetchTimeoutMs = isPiped
+    ? Math.min(config.pipedRequestTimeoutMs ?? 800, timeoutBudgetMs - 100)
+    : 10000;
+  return { timeoutBudgetMs, fetchTimeoutMs };
+}
+
 /**
  * Build execution context from arguments and environment
  */
-function buildExecutionContext(
+async function buildExecutionContext(
   args: ParsedArgs,
   isPiped: boolean,
   startTime: number
-): Promise<{
-  ctx: ExecutionContext;
-  baseUrl: string;
-}> {
-  return (async () => {
-    // Read current environment
-    const env = readCurrentEnv();
-    logger.debug('Environment loaded', {
-      baseUrl: env.baseUrl ? `${env.baseUrl.substring(0, 30)}...` : undefined,
-      hasToken: !!env.authToken,
-      providerOverride: env.providerOverride,
-      pollIntervalOverride: env.pollIntervalOverride
-    });
+): Promise<{ ctx: ExecutionContext; baseUrl: string }> {
+  const { env, baseUrl } = readAndValidateEnv();
+  ensureDefaultConfigs();
+  const { config, configHash } = loadConfigWithHash(args.configPath);
+  const { endpointConfigs, endpointConfigHash } = loadEndpointConfigsWithHash();
+  const endpointLock = resolveEndpointLock(endpointConfigHash);
+  const { providerId, provider } = await resolveProviderWithTimeout(baseUrl, env, endpointConfigs, isPiped);
+  const cachedEntry = readCache(baseUrl);
+  logger.debug('Cache read', {
+    cacheHit: !!cachedEntry,
+    cacheAge: cachedEntry ? `${Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 1000)}s` : 'N/A'
+  });
+  const { timeoutBudgetMs, fetchTimeoutMs } = computeTimeoutBudgets(isPiped, config);
 
-    // Validate required env vars
-    const envError = validateRequiredEnv(env);
-    if (envError) {
-      const errorOutput = renderError('missing-env', 'without-cache');
-      process.stdout.write(errorOutput);
-      process.exit(0);
-    }
+  const ctx: ExecutionContext = {
+    env,
+    config,
+    configHash,
+    endpointConfigHash,
+    endpointLock,
+    cachedEntry,
+    providerId,
+    provider,
+    timeoutBudgetMs,
+    startTime,
+    fetchTimeoutMs,
+  };
 
-    const baseUrl = env.baseUrl;
-    const authToken = env.authToken;
-
-    if (!baseUrl || !authToken) {
-      // Should never happen after validation, but satisfy TypeScript
-      process.exit(1);
-    }
-
-    // Check if config initialization is needed (first run)
-    if (needsConfigInit()) {
-      logger.debug('First run detected - initializing default configs');
-      writeDefaultConfigs();
-    }
-
-    // Load config
-    const config = loadConfig(args.configPath);
-    const configPath = getConfigPath(args.configPath);
-    const configHash = computeConfigHash(configPath);
-    logger.debug('Config loaded', { configPath, configHash });
-
-    // Load endpoint configs
-    const endpointConfigs = loadEndpointConfigs();
-    const endpointConfigHash = computeEndpointConfigHash();
-    logger.debug('Endpoint configs loaded', {
-      configCount: Object.keys(endpointConfigs).length,
-      endpointConfigHash
-    });
-
-    // Check endpoint config lock file
-    let endpointLock = readEndpointLock();
-    if (!endpointLock) {
-      // First run or lock file missing - create it
-      logger.debug('Endpoint lock file missing - creating with current hash');
-      writeEndpointLock(endpointConfigHash);
-      endpointLock = { hash: endpointConfigHash, lockedAt: new Date().toISOString() };
-    } else {
-      logger.debug('Endpoint lock file loaded', {
-        lockedHash: endpointLock.hash,
-        currentHash: endpointConfigHash,
-        locked: endpointLock.hash === endpointConfigHash
-      });
-    }
-
-    // Resolve provider (with mode-aware probe timeout)
-    // In piped mode, cap probe timeout to budget - 200ms overhead
-    // In --once mode, allow longer probe timeout (3s)
-    const probeTimeout = isPiped
-      ? Math.min(1500, Math.max(200, Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000) - 200))
-      : 3000;
-    const providerId = await resolveProvider(
-      baseUrl,
-      env.providerOverride,
-      endpointConfigs,
-      probeTimeout
-    );
-    const provider = getProvider(providerId, endpointConfigs);
-    logger.debug('Provider resolved', { providerId, probeTimeout });
-
-    if (!provider) {
-      logger.error('Provider not found', { providerId });
-      const errorOutput = renderError('provider-unknown', 'without-cache');
-      process.stdout.write(errorOutput);
-      process.exit(0);
-    }
-
-    // Read cache
-    const cachedEntry = readCache(baseUrl);
-    logger.debug('Cache read', {
-      cacheHit: !!cachedEntry,
-      cacheAge: cachedEntry ? `${Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 1000)}s` : 'N/A'
-    });
-
-    // Derive timeout budgets
-    const timeoutBudgetMs = isPiped
-      ? Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000)
-      : 10000; // 10s for direct mode
-
-    const fetchTimeoutMs = isPiped
-      ? Math.min(config.pipedRequestTimeoutMs ?? 800, timeoutBudgetMs - 100)
-      : 10000;
-
-    // Construct execution context
-    const ctx: ExecutionContext = {
-      env,
-      config,
-      configHash,
-      endpointConfigHash,
-      endpointConfigs,
-      endpointLock,
-      cachedEntry,
-      providerId,
-      provider,
-      timeoutBudgetMs,
-      startTime,
-      fetchTimeoutMs,
-    };
-
-    return { ctx, baseUrl };
-  })();
+  return { ctx, baseUrl };
 }
 
 /**
@@ -189,7 +195,18 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
   logger.debug('Mode detection', { isPiped, once: args.once });
 
   // Build execution context
-  const { ctx, baseUrl } = await buildExecutionContext(args, isPiped, startTime);
+  let ctx: ExecutionContext;
+  let baseUrl: string;
+  try {
+    ({ ctx, baseUrl } = await buildExecutionContext(args, isPiped, startTime));
+  } catch (error: unknown) {
+    logger.error('Failed to build execution context', { error: String(error) });
+    const errorOutput = renderError('network-error', 'without-cache');
+    const formattedOutput = formatOutput(errorOutput, isPiped);
+    process.stdout.write(formattedOutput);
+    logger.debug('=== cc-api-statusline execution completed ===');
+    process.exit(0);
+  }
 
   // Execute cycle
   logger.debug('Execution context prepared', {
