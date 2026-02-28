@@ -318,13 +318,6 @@ export function resolveColor(
  * @returns Resolved color string
  */
 /**
- * Type guard to check if alias is tiered entry
- */
-function isTieredEntry(alias: ColorAliasEntry): alias is ColorTieredEntry {
-  return 'tiers' in alias;
-}
-
-/**
  * Resolve tiered color based on usage percentage
  */
 function resolveTieredColor(
@@ -354,24 +347,5 @@ function resolveColorAlias(
   usagePercent: number | null
 ): string | null {
   if (!alias) return null;
-
-  // Check if it's a tiered entry first
-  if (isTieredEntry(alias)) {
-    return resolveTieredColor(alias, usagePercent);
-  }
-
-  // Legacy format (3-tier)
-  // No usage data → default to "low" color
-  if (usagePercent === null) {
-    return alias.low;
-  }
-
-  // Resolve based on thresholds
-  if (usagePercent < alias.lowThreshold) {
-    return alias.low;
-  } else if (usagePercent < alias.highThreshold) {
-    return alias.medium;
-  } else {
-    return alias.high;
-  }
+  return resolveTieredColor(alias, usagePercent);
 }

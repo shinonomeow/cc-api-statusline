@@ -126,18 +126,18 @@ describe('resolveColor', () => {
     ...DEFAULT_CONFIG,
     colors: {
       auto: {
-        low: 'green',
-        medium: 'yellow',
-        high: 'red',
-        lowThreshold: 50,
-        highThreshold: 80,
+        tiers: [
+          { color: 'green', maxPercent: 50 },
+          { color: 'yellow', maxPercent: 80 },
+          { color: 'red', maxPercent: 100 },
+        ],
       },
       chill: {
-        low: 'cyan',
-        medium: 'blue',
-        high: 'magenta',
-        lowThreshold: 50,
-        highThreshold: 80,
+        tiers: [
+          { color: 'cyan', maxPercent: 50 },
+          { color: 'blue', maxPercent: 80 },
+          { color: 'magenta', maxPercent: 100 },
+        ],
       },
       direct: 'purple',
     },
@@ -325,45 +325,3 @@ describe('resolveColor - tiered format', () => {
   });
 });
 
-describe('resolveColor - legacy backward compat', () => {
-  const legacyConfig: Config = {
-    ...DEFAULT_CONFIG,
-    colors: {
-      auto: {
-        low: 'green',
-        medium: 'yellow',
-        high: 'red',
-        lowThreshold: 50,
-        highThreshold: 80,
-      },
-      chill: {
-        low: 'cyan',
-        medium: 'blue',
-        high: 'magenta',
-        lowThreshold: 50,
-        highThreshold: 80,
-      },
-    },
-  };
-
-  test('legacy format still works for low usage', () => {
-    expect(resolveColor('auto', 0, legacyConfig)).toBe('green');
-    expect(resolveColor('auto', 49, legacyConfig)).toBe('green');
-  });
-
-  test('legacy format still works for medium usage', () => {
-    expect(resolveColor('auto', 50, legacyConfig)).toBe('yellow');
-    expect(resolveColor('auto', 79, legacyConfig)).toBe('yellow');
-  });
-
-  test('legacy format still works for high usage', () => {
-    expect(resolveColor('auto', 80, legacyConfig)).toBe('red');
-    expect(resolveColor('auto', 100, legacyConfig)).toBe('red');
-  });
-
-  test('legacy custom alias (chill) still works', () => {
-    expect(resolveColor('chill', 0, legacyConfig)).toBe('cyan');
-    expect(resolveColor('chill', 50, legacyConfig)).toBe('blue');
-    expect(resolveColor('chill', 80, legacyConfig)).toBe('magenta');
-  });
-});

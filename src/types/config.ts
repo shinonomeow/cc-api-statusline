@@ -117,20 +117,9 @@ export interface ColorTieredEntry {
 }
 
 /**
- * Legacy color alias entry (3-tier format, backward compatible)
+ * Dynamic color alias entry
  */
-export interface ColorLegacyEntry {
-  low: string; // Color when usage < lowThreshold
-  medium: string; // Color when usage < highThreshold
-  high: string; // Color when usage >= highThreshold
-  lowThreshold: number; // Default 50
-  highThreshold: number; // Default 80
-}
-
-/**
- * Dynamic color alias entry (supports both legacy and tiered formats)
- */
-export type ColorAliasEntry = ColorLegacyEntry | ColorTieredEntry;
+export type ColorAliasEntry = ColorTieredEntry;
 
 /**
  * Color configuration
@@ -182,80 +171,6 @@ export interface DisplayConfig {
   clockFormat: ClockFormat; // 12h or 24h, default: 24h
   colorMode?: ColorMode; // Color rendering mode, default: 'auto'
   nerdFont?: 'auto' | boolean; // Nerd font availability, default: 'auto'
-}
-
-/* eslint-disable @typescript-eslint/no-deprecated */
-
-/**
- * @deprecated Legacy type for custom provider auth. Use EndpointConfig auth field instead.
- * Kept for backward compatibility with src/providers/custom.ts.
- */
-export interface CustomProviderAuthConfig {
-  type: 'header' | 'body';
-  header?: string; // Header name when type == "header"
-  prefix?: string; // Prefix before token value (e.g. "Bearer ")
-  bodyField?: string; // JSON body key when type == "body"
-}
-
-/**
- * @deprecated Legacy type for custom provider response mapping. Use EndpointConfig responseMapping instead.
- * Kept for backward compatibility with src/providers/custom-mapping.ts.
- */
-export interface CustomProviderResponseMapping {
-  billingMode?: string; // "subscription" | "balance" or JSONPath
-  planName?: string; // Literal or JSONPath
-  'balance.remaining'?: string; // JSONPath
-  'balance.initial'?: string; // JSONPath
-  'balance.unit'?: string; // Literal or JSONPath
-  'daily.used'?: string; // JSONPath
-  'daily.limit'?: string; // JSONPath
-  'daily.resetsAt'?: string; // JSONPath
-  'weekly.used'?: string; // JSONPath
-  'weekly.limit'?: string; // JSONPath
-  'weekly.resetsAt'?: string; // JSONPath
-  'monthly.used'?: string; // JSONPath
-  'monthly.limit'?: string; // JSONPath
-  'monthly.resetsAt'?: string; // JSONPath
-  'tokenStats.today.requests'?: string; // JSONPath
-  'tokenStats.today.inputTokens'?: string; // JSONPath
-  'tokenStats.today.outputTokens'?: string; // JSONPath
-  'tokenStats.today.cacheCreationTokens'?: string; // JSONPath
-  'tokenStats.today.cacheReadTokens'?: string; // JSONPath
-  'tokenStats.today.totalTokens'?: string; // JSONPath
-  'tokenStats.today.cost'?: string; // JSONPath
-  'tokenStats.total.requests'?: string; // JSONPath
-  'tokenStats.total.inputTokens'?: string; // JSONPath
-  'tokenStats.total.outputTokens'?: string; // JSONPath
-  'tokenStats.total.cacheCreationTokens'?: string; // JSONPath
-  'tokenStats.total.cacheReadTokens'?: string; // JSONPath
-  'tokenStats.total.totalTokens'?: string; // JSONPath
-  'tokenStats.total.cost'?: string; // JSONPath
-  'tokenStats.rpm'?: string; // JSONPath
-  'tokenStats.tpm'?: string; // JSONPath
-  'rateLimit.windowSeconds'?: string; // JSONPath
-  'rateLimit.requestsUsed'?: string; // JSONPath
-  'rateLimit.requestsLimit'?: string; // JSONPath
-  'rateLimit.costUsed'?: string; // JSONPath
-  'rateLimit.costLimit'?: string; // JSONPath
-  'rateLimit.remainingSeconds'?: string; // JSONPath
-  [key: string]: string | undefined; // Allow unknown keys
-}
-
-/**
- * @deprecated Legacy type for custom provider configuration. Use EndpointConfig instead.
- * Kept for backward compatibility with src/providers/custom.ts.
- */
-export interface CustomProviderConfig {
-  id: string; // Unique provider identifier
-  displayName?: string; // Human label; defaults to id
-  endpoint: string; // Path appended to ANTHROPIC_BASE_URL
-  method: 'GET' | 'POST'; // HTTP method
-  contentType?: string; // Request content-type; default "application/json"
-  auth: CustomProviderAuthConfig;
-  requestBody?: Record<string, unknown> | null; // JSON body template
-  urlPatterns: string[]; // URL substrings for autodetection
-  responseMapping: CustomProviderResponseMapping;
-  spoofClaudeCodeUA?: boolean | string; // User-Agent spoofing: false/undefined = none, true = auto-detect, "string" = exact UA
 }
 
 /**
@@ -355,11 +270,13 @@ export const DEFAULT_CONFIG: Config = {
       ],
     },
     chill: {
-      low: 'cyan',
-      medium: 'blue',
-      high: 'magenta',
-      lowThreshold: 62.5,
-      highThreshold: 87.5,
+      tiers: [
+        { color: 'cyan', maxPercent: 37.5 },
+        { color: 'cyan', maxPercent: 62.5 },
+        { color: 'blue', maxPercent: 75 },
+        { color: 'blue', maxPercent: 87.5 },
+        { color: 'magenta', maxPercent: 92.5 },
+      ],
     },
   },
   pollIntervalSeconds: 30,

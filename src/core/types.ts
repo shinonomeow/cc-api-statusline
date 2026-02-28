@@ -6,7 +6,6 @@
  */
 
 import type { EnvSnapshot, Config, CacheEntry } from '../types/index.js';
-import type { EndpointConfigRegistry } from '../types/endpoint-config.js';
 import type { EndpointLockEntry } from '../services/endpoint-lock.js';
 import type { ProviderAdapter } from '../providers/index.js';
 
@@ -27,9 +26,6 @@ export interface ExecutionContext {
 
   /** Endpoint config hash from computeEndpointConfigHash() */
   endpointConfigHash: string;
-
-  /** Loaded endpoint configs from loadEndpointConfigs() */
-  endpointConfigs: EndpointConfigRegistry;
 
   /** Endpoint lock entry from readEndpointLock() (null if no lock file) */
   endpointLock: EndpointLockEntry | null;

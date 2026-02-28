@@ -44,17 +44,8 @@ export {
   DEFAULT_COMPONENT_ORDER,
 } from './config.js';
 
-// Legacy custom provider types (deprecated, kept for backward compatibility)
-/* eslint-disable @typescript-eslint/no-deprecated */
-export type {
-  CustomProviderConfig,
-  CustomProviderAuthConfig,
-  CustomProviderResponseMapping,
-} from './config.js';
-/* eslint-enable @typescript-eslint/no-deprecated */
-
 // Cache types
-export type { CacheEntry, ErrorState, ProviderDetectionCacheEntry } from './cache.js';
+export type { CacheEntry, ProviderDetectionCacheEntry } from './cache.js';
 
 export { CACHE_VERSION, DEFAULT_CACHE_TTL_SECONDS, isCacheEntry, PROVIDER_DETECTION_TTL_SECONDS, isProviderDetectionCacheEntry } from './cache.js';
 

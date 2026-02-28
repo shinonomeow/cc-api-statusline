@@ -5,11 +5,6 @@
  */
 
 /**
- * Loading fallback text (unused currently, reserved for future TUI mode)
- */
-export const LOADING_FALLBACK = '⏳ Loading...';
-
-/**
  * Default fetch timeout in milliseconds
  * Used by all providers when no custom timeout provided
  */

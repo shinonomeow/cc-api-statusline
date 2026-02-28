@@ -24,11 +24,6 @@ export interface CacheErrorState {
 }
 
 /**
- * Backward-compatible alias for external type consumers.
- */
-export type ErrorState = CacheErrorState;
-
-/**
  * Cache entry stored on disk
  *
  * Validity requires ALL of:
