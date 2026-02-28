@@ -10,6 +10,9 @@ import type { ExecutionContext } from '../core/index.js';
 import { readCurrentEnv, validateRequiredEnv } from '../services/env.js';
 import { readCache, writeCache, computeConfigHash, getCacheDir } from '../services/cache.js';
 import { loadConfig, getConfigPath } from '../services/config.js';
+import { loadEndpointConfigs, computeEndpointConfigHash } from '../services/endpoint-config.js';
+import { readEndpointLock, writeEndpointLock } from '../services/endpoint-lock.js';
+import { needsConfigInit, writeDefaultConfigs } from '../services/config-defaults.js';
 import { resolveProvider, getProvider } from '../providers/index.js';
 import { renderError } from '../renderer/error.js';
 import { executeCycle } from '../core/index.js';
@@ -53,11 +56,40 @@ function buildExecutionContext(
       process.exit(1);
     }
 
+    // Check if config initialization is needed (first run)
+    if (needsConfigInit()) {
+      logger.debug('First run detected - initializing default configs');
+      writeDefaultConfigs();
+    }
+
     // Load config
     const config = loadConfig(args.configPath);
     const configPath = getConfigPath(args.configPath);
     const configHash = computeConfigHash(configPath);
     logger.debug('Config loaded', { configPath, configHash });
+
+    // Load endpoint configs
+    const endpointConfigs = loadEndpointConfigs();
+    const endpointConfigHash = computeEndpointConfigHash();
+    logger.debug('Endpoint configs loaded', {
+      configCount: Object.keys(endpointConfigs).length,
+      endpointConfigHash
+    });
+
+    // Check endpoint config lock file
+    let endpointLock = readEndpointLock();
+    if (!endpointLock) {
+      // First run or lock file missing - create it
+      logger.debug('Endpoint lock file missing - creating with current hash');
+      writeEndpointLock(endpointConfigHash);
+      endpointLock = { hash: endpointConfigHash, lockedAt: new Date().toISOString() };
+    } else {
+      logger.debug('Endpoint lock file loaded', {
+        lockedHash: endpointLock.hash,
+        currentHash: endpointConfigHash,
+        locked: endpointLock.hash === endpointConfigHash
+      });
+    }
 
     // Resolve provider (with mode-aware probe timeout)
     // In piped mode, cap probe timeout to budget - 200ms overhead
@@ -68,10 +100,10 @@ function buildExecutionContext(
     const providerId = await resolveProvider(
       baseUrl,
       env.providerOverride,
-      config.customProviders ?? {},
+      endpointConfigs,
       probeTimeout
     );
-    const provider = getProvider(providerId, config.customProviders ?? {});
+    const provider = getProvider(providerId, endpointConfigs);
     logger.debug('Provider resolved', { providerId, probeTimeout });
 
     if (!provider) {
@@ -102,6 +134,9 @@ function buildExecutionContext(
       env,
       config,
       configHash,
+      endpointConfigHash,
+      endpointConfigs,
+      endpointLock,
       cachedEntry,
       providerId,
       provider,

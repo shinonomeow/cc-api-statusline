@@ -130,6 +130,7 @@ describe('E2E - CLI Smoke Tests', () => {
       data: mockData,
       renderedLine: 'Daily ━━━━────── 10%',
       configHash: shortHash(testConfig, 12),
+      endpointConfigHash: 'test-hash',
       errorState: null,
     };
 
@@ -186,6 +187,7 @@ describe('E2E - CLI Smoke Tests', () => {
       data: mockData,
       renderedLine: 'Daily ━━━━────── 25%',
       configHash: shortHash(testConfig, 12),
+      endpointConfigHash: 'test-hash',
       errorState: null,
     };
 
@@ -212,6 +214,24 @@ describe('E2E - Cache Paths', () => {
     const testTokenHash = shortHash(testToken, 12);
     const configPath = join(configDir, 'fast-path-config.json');
     writeFileSync(configPath, '{}');
+
+    // Set up api-config directory for endpoint config hash computation
+    const apiConfigDir = join(configDir, 'api-config');
+    mkdirSync(apiConfigDir, { recursive: true });
+    const endpointConfigPath = join(apiConfigDir, 'sub2api.json');
+    const endpointConfigContent = JSON.stringify({
+      provider: 'sub2api',
+      displayName: 'sub2api',
+      endpoint: { path: '/v1/usage', method: 'GET' },
+      auth: { type: 'bearer-header' },
+      responseMapping: { billingMode: 'subscription' }
+    });
+    writeFileSync(endpointConfigPath, endpointConfigContent);
+    // Compute endpoint config hash to match runtime (note: sorted files alphabetically)
+    const endpointConfigHash = shortHash(`\x00sub2api.json\x00${endpointConfigContent}`, 12);
+    // Create endpoint lock file to match
+    const lockFilePath = join(configDir, '.endpoint-config.lock');
+    writeFileSync(lockFilePath, JSON.stringify({ hash: endpointConfigHash, lockedAt: new Date().toISOString() }));
 
     const mockData: NormalizedUsage = {
       provider: 'sub2api',
@@ -240,6 +260,7 @@ describe('E2E - Cache Paths', () => {
       data: mockData,
       renderedLine,
       configHash: shortHash('{}', 12),
+      endpointConfigHash,
       errorState: null,
     };
 
@@ -251,6 +272,7 @@ describe('E2E - Cache Paths', () => {
       ANTHROPIC_BASE_URL: testBaseUrl,
       ANTHROPIC_AUTH_TOKEN: testToken,
       CC_API_STATUSLINE_CACHE_DIR: cacheDir,
+      CC_API_STATUSLINE_CONFIG_DIR: configDir,
     });
 
     expect(result.status).toBe(0);
@@ -299,6 +321,7 @@ describe('E2E - Cache Paths', () => {
       data: mockData,
       renderedLine: staleRenderedLine,
       configHash: 'mismatch-hash',
+      endpointConfigHash: 'test-hash',
       errorState: null,
     };
 
@@ -357,6 +380,7 @@ describe('E2E - Performance Verification', () => {
       data: mockData,
       renderedLine: 'Daily ━━━━──── 50%',
       configHash: shortHash('{}', 12),
+      endpointConfigHash: 'test-hash',
       errorState: null,
     };
 

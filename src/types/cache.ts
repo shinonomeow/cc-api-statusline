@@ -8,8 +8,10 @@ import type { NormalizedUsage } from './normalized-usage.js';
 
 /**
  * Cache format version - increment when schema changes
+ *
+ * Version 2: Added endpointConfigHash for endpoint config lock file support
  */
-export const CACHE_VERSION = 1;
+export const CACHE_VERSION = 2;
 
 /**
  * Error state for polling engine (cache)
@@ -35,6 +37,7 @@ export type ErrorState = CacheErrorState;
  * 3. Base URL matches current env (via tokenHash)
  * 4. Version matches CACHE_VERSION
  * 5. Token hash matches current env token
+ * 6. Endpoint config hash matches lock file (v2+)
  */
 export interface CacheEntry {
   version: number; // CACHE_VERSION
@@ -42,6 +45,7 @@ export interface CacheEntry {
   baseUrl: string; // ANTHROPIC_BASE_URL, for display/debug
   tokenHash: string; // sha256(ANTHROPIC_AUTH_TOKEN)[0:12], detects token changes
   configHash: string; // sha256(raw config file bytes), for fast-path configHash check
+  endpointConfigHash: string; // sha256(api-config/*.json), for endpoint config lock file check (v2+)
 
   data: NormalizedUsage; // Normalized usage data
   renderedLine: string; // Pre-rendered statusline for fast piped mode (Path A)
@@ -71,6 +75,7 @@ export function isCacheEntry(value: unknown): value is CacheEntry {
     typeof c['baseUrl'] === 'string' &&
     typeof c['tokenHash'] === 'string' &&
     typeof c['configHash'] === 'string' &&
+    typeof c['endpointConfigHash'] === 'string' &&
     typeof c['data'] === 'object' &&
     c['data'] !== null &&
     typeof c['renderedLine'] === 'string' &&

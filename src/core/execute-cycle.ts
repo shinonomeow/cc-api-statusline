@@ -28,13 +28,15 @@ import { EXIT_BUFFER_MS } from './constants.js';
  * @returns Execution result with output, exit code, and optional cache update
  */
 export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResult> {
-  const { env, config, configHash, cachedEntry, providerId, provider, timeoutBudgetMs, startTime, fetchTimeoutMs } = ctx;
+  const { env, config, configHash, endpointConfigHash, endpointLock, cachedEntry, providerId, provider, timeoutBudgetMs, startTime, fetchTimeoutMs } = ctx;
 
   // Path A: Fast path - cached renderedLine usable
-  // Requires: cache valid + configHash match + provider match
+  // Requires: cache valid + configHash match + endpointConfigHash match + provider match + endpoint config locked
   if (cachedEntry) {
     if (isCacheValid(cachedEntry, env) && isCacheProviderValid(cachedEntry, providerId)) {
-      if (cachedEntry.renderedLine && isCacheRenderedLineUsable(cachedEntry, configHash)) {
+      if (cachedEntry.renderedLine
+          && isCacheRenderedLineUsable(cachedEntry, configHash)
+          && cachedEntry.endpointConfigHash === endpointConfigHash) {
         // Fast path: return cached rendered line
         logger.debug('Path A: Fast path (cached renderedLine)', {
           cacheAge: `${Math.floor((Date.now() - new Date(cachedEntry.fetchedAt).getTime()) / 1000)}s`
@@ -48,17 +50,45 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
     }
   }
 
+  // Path B2: Endpoint config changed (lock file hash mismatch)
+  // Show warning and serve from cache (do NOT fetch with new config)
+  if (endpointLock && endpointLock.hash !== endpointConfigHash) {
+    logger.debug('Path B2: Endpoint config changed (locked out)', {
+      lockedHash: endpointLock.hash,
+      currentHash: endpointConfigHash
+    });
+
+    // If we have valid cache, show it with warning
+    if (cachedEntry && isCacheValid(cachedEntry, env) && isCacheProviderValid(cachedEntry, providerId)) {
+      const statusline = renderStatusline(cachedEntry.data, config);
+      return {
+        output: statusline,
+        exitCode: 0,
+        cacheUpdate: null, // Don't update cache - keep old endpoint hash
+      };
+    }
+
+    // No valid cache - show warning message
+    const errorOutput = renderError('endpoint-config-changed', 'without-cache');
+    return {
+      output: errorOutput,
+      exitCode: 0,
+      cacheUpdate: null,
+    };
+  }
+
   // Path B: Cache data valid but renderedLine stale → re-render
   if (cachedEntry && isCacheValid(cachedEntry, env) && isCacheProviderValid(cachedEntry, providerId)) {
     // Re-render from cached data
     logger.debug('Path B: Re-render (config changed, cache data valid)');
     const statusline = renderStatusline(cachedEntry.data, config);
 
-    // Update cache with new renderedLine and configHash
+    // Update cache with new renderedLine, configHash, and endpointConfigHash
     const updatedEntry: CacheEntry = {
       ...cachedEntry,
       renderedLine: statusline,
       configHash,
+      endpointConfigHash,
     };
 
     return {
@@ -122,6 +152,7 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       data,
       renderedLine: statusline,
       configHash,
+      endpointConfigHash,
       errorState: null,
     };
 

@@ -2,6 +2,7 @@
  * Tests for custom provider response mapping
  */
 
+/* eslint-disable @typescript-eslint/no-deprecated */
 import { describe, it, expect } from 'vitest';
 import {
   resolveJsonPath,
@@ -180,6 +181,7 @@ describe('custom-mapping', () => {
       endpoint: '/api/usage',
       method: 'GET',
       auth: { type: 'header', header: 'Authorization', prefix: 'Bearer ' },
+      urlPatterns: [],
       responseMapping: {
         billingMode: '$.billingMode',
         planName: '$.plan',

@@ -4,7 +4,7 @@
  * Health probe + URL-pattern based provider detection with multi-tier caching
  */
 
-import type { CustomProviderConfig } from '../types/index.js';
+import type { EndpointConfigRegistry } from '../types/endpoint-config.js';
 import { probeHealth } from './health-probe.js';
 import {
   readProviderDetectionCache,
@@ -31,26 +31,26 @@ const detectionCache = new Map<string, DetectionCacheEntry>();
  * Detect provider from base URL using URL pattern matching
  *
  * Priority:
- * 1. Custom providers (check urlPatterns)
+ * 1. Endpoint configs with urlPatterns
  * 2. Built-in providers (URL pattern match for distinctive endpoints)
  * 3. Default to sub2api
  *
  * @param baseUrl - ANTHROPIC_BASE_URL value
- * @param customProviders - Custom provider configs from config
+ * @param endpointConfigs - Endpoint config registry
  * @returns Provider ID
  */
 export function detectProviderFromUrlPattern(
   baseUrl: string,
-  customProviders: Record<string, CustomProviderConfig> = {}
+  endpointConfigs: EndpointConfigRegistry = {}
 ): string {
   // Normalize URL for comparison (lowercase, remove trailing slash)
   const normalizedUrl = baseUrl.toLowerCase().replace(/\/$/, '');
 
-  // Check custom providers first (only if they have urlPatterns)
-  for (const [providerId, config] of Object.entries(customProviders)) {
-    // urlPatterns is optional per spec
-    if (config.urlPatterns && config.urlPatterns.length > 0) {
-      for (const pattern of config.urlPatterns) {
+  // Check endpoint configs (only if they have urlPatterns in detection config)
+  for (const [providerId, config] of Object.entries(endpointConfigs)) {
+    const urlPatterns = config.detection?.urlPatterns;
+    if (urlPatterns && urlPatterns.length > 0) {
+      for (const pattern of urlPatterns) {
         const normalizedPattern = pattern.toLowerCase();
 
         // Substring match
@@ -81,21 +81,21 @@ export function detectProviderFromUrlPattern(
  * 1. Explicit override (CC_STATUSLINE_PROVIDER) - immediate return
  * 2. In-memory cache - return if hit
  * 3. Disk cache - return if hit and TTL valid
- * 4. Custom provider URL patterns - cache and return
+ * 4. Endpoint config URL patterns - cache and return
  * 5. Health probe - cache (memory + disk) and return
  * 6. Built-in URL pattern fallback - cache and return
  * 7. Default to sub2api
  *
  * @param baseUrl - ANTHROPIC_BASE_URL value
  * @param providerOverride - CC_STATUSLINE_PROVIDER env override
- * @param customProviders - Custom provider configs
+ * @param endpointConfigs - Endpoint config registry
  * @param probeTimeoutMs - Health probe timeout in milliseconds
  * @returns Provider ID
  */
 export async function resolveProvider(
   baseUrl: string,
   providerOverride: string | null,
-  customProviders: Record<string, CustomProviderConfig> = {},
+  endpointConfigs: EndpointConfigRegistry = {},
   probeTimeoutMs: number = 1500
 ): Promise<string> {
   // 1. Explicit override takes precedence
@@ -126,14 +126,15 @@ export async function resolveProvider(
     return diskCached.provider;
   }
 
-  // 4. Check custom provider URL patterns
-  for (const [providerId, config] of Object.entries(customProviders)) {
-    if (config.urlPatterns && config.urlPatterns.length > 0) {
+  // 4. Check endpoint config URL patterns
+  for (const [providerId, config] of Object.entries(endpointConfigs)) {
+    const urlPatterns = config.detection?.urlPatterns;
+    if (urlPatterns && urlPatterns.length > 0) {
       const normalizedUrl = baseUrl.toLowerCase().replace(/\/$/, '');
-      for (const pattern of config.urlPatterns) {
+      for (const pattern of urlPatterns) {
         const normalizedPattern = pattern.toLowerCase();
         if (normalizedUrl.includes(normalizedPattern)) {
-          logger.debug('Provider detected via custom URL pattern', { provider: providerId, pattern });
+          logger.debug('Provider detected via endpoint URL pattern', { provider: providerId, pattern });
           // Cache detection
           cacheProviderDetection(baseUrl, providerId, 'url-pattern');
           return providerId;

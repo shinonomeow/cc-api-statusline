@@ -12,6 +12,7 @@ export interface ParsedArgs {
   once: boolean;
   install: boolean;
   uninstall: boolean;
+  applyConfig: boolean;
   force: boolean;
   configPath?: string;
   runner?: 'npx' | 'bunx';
@@ -27,6 +28,7 @@ export function parseArgs(): ParsedArgs {
   let once = false;
   let install = false;
   let uninstall = false;
+  let applyConfig = false;
   let force = false;
   let configPath: string | undefined;
   let runner: 'npx' | 'bunx' | undefined;
@@ -43,6 +45,8 @@ export function parseArgs(): ParsedArgs {
       install = true;
     } else if (arg === '--uninstall') {
       uninstall = true;
+    } else if (arg === '--apply-config') {
+      applyConfig = true;
     } else if (arg === '--force') {
       force = true;
     } else if (arg === '--config' && i + 1 < args.length) {
@@ -57,7 +61,7 @@ export function parseArgs(): ParsedArgs {
     }
   }
 
-  return { help, version, once, install, uninstall, force, configPath, runner };
+  return { help, version, once, install, uninstall, applyConfig, force, configPath, runner };
 }
 
 /**
@@ -75,8 +79,9 @@ Options:
   --version, -v      Show version
   --once             Fetch once and exit (no polling)
   --config <path>    Use custom config file
-  --install          Register as Claude Code statusline widget
+  --install          Register as Claude Code statusline widget and create default configs
   --uninstall        Remove statusline widget registration
+  --apply-config     Apply endpoint config changes (updates lock file, clears caches)
   --runner <runner>  Package runner: npx or bunx (default: auto-detect)
   --force            Force overwrite existing statusline configuration
 

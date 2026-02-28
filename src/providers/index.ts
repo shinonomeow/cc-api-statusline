@@ -5,10 +5,10 @@
  */
 
 import type { NormalizedUsage, Config } from '../types/index.js';
-import type { CustomProviderConfig } from '../types/index.js';
+import type { EndpointConfigRegistry } from '../types/endpoint-config.js';
 import { fetchSub2api } from './sub2api.js';
 import { fetchClaudeRelayService } from './claude-relay-service.js';
-import { fetchCustom } from './custom.js';
+import { fetchEndpoint } from './endpoint-fetch.js';
 import { resolveProvider } from './autodetect.js';
 
 /**
@@ -45,24 +45,24 @@ const BUILT_IN_ADAPTERS: Record<string, ProviderAdapter> = {
  * Get provider adapter by ID
  *
  * @param providerId - Provider identifier
- * @param customProviders - Custom provider configs
+ * @param endpointConfigs - Endpoint config registry
  * @returns Provider adapter or null if not found
  */
 export function getProvider(
   providerId: string,
-  customProviders: Record<string, CustomProviderConfig> = {}
+  endpointConfigs: EndpointConfigRegistry = {}
 ): ProviderAdapter | null {
-  // Check built-in providers first
+  // Check built-in providers first (sub2api, CRS have dedicated adapters)
   if (BUILT_IN_ADAPTERS[providerId]) {
     return BUILT_IN_ADAPTERS[providerId];
   }
 
-  // Check custom providers
-  const customConfig = customProviders[providerId];
-  if (customConfig) {
+  // Check endpoint configs (includes both built-in and custom providers)
+  const endpointConfig = endpointConfigs[providerId];
+  if (endpointConfig) {
     return {
       fetch: (baseUrl: string, token: string, config: Config, timeoutMs: number) =>
-        fetchCustom(baseUrl, token, config, customConfig, timeoutMs),
+        fetchEndpoint(baseUrl, token, config, endpointConfig, timeoutMs),
     };
   }
 
@@ -74,22 +74,22 @@ export function getProvider(
  *
  * @param baseUrl - ANTHROPIC_BASE_URL
  * @param providerOverride - CC_STATUSLINE_PROVIDER env override
- * @param customProviders - Custom provider configs
+ * @param endpointConfigs - Endpoint config registry
  * @param probeTimeoutMs - Health probe timeout in milliseconds
  * @returns Provider adapter or null if not found
  */
 export async function getProviderWithAutodetect(
   baseUrl: string,
   providerOverride: string | null,
-  customProviders: Record<string, CustomProviderConfig> = {},
+  endpointConfigs: EndpointConfigRegistry = {},
   probeTimeoutMs: number = 1500
 ): Promise<ProviderAdapter | null> {
-  const providerId = await resolveProvider(baseUrl, providerOverride, customProviders, probeTimeoutMs);
-  return getProvider(providerId, customProviders);
+  const providerId = await resolveProvider(baseUrl, providerOverride, endpointConfigs, probeTimeoutMs);
+  return getProvider(providerId, endpointConfigs);
 }
 
 // Re-export useful types and functions
 export { resolveProvider, invalidateDetectionCache, clearDetectionCache } from './autodetect.js';
-export { validateCustomProvider } from './custom.js';
+export { validateEndpointConfig } from './endpoint-fetch.js';
 export { extractOrigin, probeHealth } from './health-probe.js';
-export type { CustomProviderConfig } from '../types/index.js';
+export type { EndpointConfig, EndpointConfigRegistry } from '../types/endpoint-config.js';

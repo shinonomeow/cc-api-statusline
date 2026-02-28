@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-deprecated */
 import { describe, it, expect } from 'vitest';
 import { validateCustomProvider } from '../custom.js';
 import type { CustomProviderConfig } from '../../types/index.js';
@@ -92,8 +93,8 @@ describe('custom provider', () => {
     });
 
     it('should allow urlPatterns to be optional', () => {
-      const config = { ...validConfig, urlPatterns: undefined };
-      const error = validateCustomProvider(config);
+      const { urlPatterns: _, ...configWithoutUrlPatterns } = validConfig;
+      const error = validateCustomProvider(configWithoutUrlPatterns as CustomProviderConfig);
       expect(error).toBeNull();
     });
 
@@ -130,6 +131,7 @@ describe('custom provider', () => {
           type: 'body',
           bodyField: 'key',
         },
+        urlPatterns: [],
         responseMapping: {
           billingMode: 'balance',
         },

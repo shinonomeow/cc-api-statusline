@@ -81,6 +81,7 @@ beforeAll(() => {
     data: mockUsageData,
     renderedLine,
     configHash: shortHash('{}', 12), // Empty config hash
+    endpointConfigHash: 'test-hash',
     errorState: null,
   };
 

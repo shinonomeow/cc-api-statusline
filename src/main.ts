@@ -6,7 +6,7 @@
  * Handles args parsing and dispatches to appropriate handler.
  */
 
-import { parseArgs, showHelp, showVersion, handleInstall, handleUninstall, executePipedMode } from './cli/index.js';
+import { parseArgs, showHelp, showVersion, handleInstall, handleUninstall, handleApplyConfig, executePipedMode } from './cli/index.js';
 import pkg from '../package.json' with { type: 'json' };
 import { logger } from './services/logger.js';
 
@@ -57,6 +57,11 @@ async function main(): Promise<void> {
   if (args.uninstall) {
     handleUninstall();
     return; // handleUninstall exits internally
+  }
+
+  if (args.applyConfig) {
+    handleApplyConfig();
+    return; // handleApplyConfig exits internally
   }
 
   // Interactive TUI mode (future)

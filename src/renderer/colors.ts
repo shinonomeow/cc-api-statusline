@@ -46,6 +46,34 @@ const THEME_COLORS: Record<string, string> = {
   warm: '#C9A84C',
   hot: '#CB7E55',
   critical: '#C96B6B',
+
+  // Pastel theme colors (soft, gentle)
+  'pastel-cool': '#BAD7F2',        // pale-sky
+  'pastel-comfortable': '#BAF2D8', // celadon-2
+  'pastel-medium': '#BAF2BB',      // celadon
+  'pastel-warm': '#F2E2BA',        // pearl-beige
+  'pastel-hot': '#F2BAC9',         // soft-blossom
+
+  // Bright theme colors (vibrant pastels)
+  'bright-cool': '#90F1EF',        // soft-cyan
+  'bright-comfortable': '#7BF1A8', // light-green-2
+  'bright-medium': '#C1FBA4',      // light-green
+  'bright-warm': '#FFEF9F',        // light-gold
+  'bright-hot': '#FFD6E0',         // petal-frost
+
+  // Ocean theme colors (deep blues to coral)
+  'ocean-cool': '#0081A7',         // cerulean
+  'ocean-comfortable': '#00AFB9',  // tropical-teal
+  'ocean-medium': '#FDFCDC',       // light-yellow
+  'ocean-warm': '#FED9B7',         // soft-apricot
+  'ocean-hot': '#F07167',          // vibrant-coral
+
+  // Neutral theme colors (muted neutrals)
+  'neutral-cool': '#D8E2DC',
+  'neutral-comfortable': '#FFE5D9',
+  'neutral-warm': '#FFCAD4',
+  'neutral-hot': '#F4ACB7',
+  'neutral-critical': '#9D8189',
 };
 
 /**

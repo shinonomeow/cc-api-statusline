@@ -5,7 +5,7 @@ import {
   clearDetectionCache,
   getDetectionCacheSize,
 } from '../autodetect.js';
-import type { CustomProviderConfig } from '../../types/index.js';
+import type { EndpointConfigRegistry } from '../../types/endpoint-config.js';
 import * as healthProbe from '../health-probe.js';
 import * as cache from '../../services/cache.js';
 
@@ -104,15 +104,19 @@ describe('autodetect provider', () => {
     });
   });
 
-  describe('resolveProvider with custom providers', () => {
-    it('should prioritize custom providers with URL patterns', async () => {
-      const customProviders: Record<string, CustomProviderConfig> = {
+  describe('resolveProvider with endpoint configs', () => {
+    it('should prioritize endpoint configs with URL patterns', async () => {
+      const endpointConfigs: EndpointConfigRegistry = {
         'my-custom': {
-          id: 'my-custom',
-          endpoint: '/api/usage',
-          method: 'GET',
-          auth: { type: 'header', header: 'Authorization', prefix: 'Bearer ' },
-          urlPatterns: ['custom.example.com'],
+          provider: 'my-custom',
+          endpoint: {
+            path: '/api/usage',
+            method: 'GET',
+          },
+          auth: { type: 'custom-header', header: 'Authorization', prefix: 'Bearer ' },
+          detection: {
+            urlPatterns: ['custom.example.com'],
+          },
           responseMapping: {},
         },
       };
@@ -120,19 +124,23 @@ describe('autodetect provider', () => {
       vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
       vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
 
-      const provider = await resolveProvider('https://custom.example.com/api', null, customProviders, 1500);
+      const provider = await resolveProvider('https://custom.example.com/api', null, endpointConfigs, 1500);
       expect(provider).toBe('my-custom');
       expect(healthProbe.probeHealth).not.toHaveBeenCalled(); // URL pattern should match before probe
     });
 
-    it('should match custom provider patterns as substrings', async () => {
-      const customProviders: Record<string, CustomProviderConfig> = {
+    it('should match endpoint config patterns as substrings', async () => {
+      const endpointConfigs: EndpointConfigRegistry = {
         'my-proxy': {
-          id: 'my-proxy',
-          endpoint: '/usage',
-          method: 'GET',
-          auth: { type: 'header', header: 'X-API-Key' },
-          urlPatterns: ['my-proxy.com', 'proxy.example'],
+          provider: 'my-proxy',
+          endpoint: {
+            path: '/usage',
+            method: 'GET',
+          },
+          auth: { type: 'custom-header', header: 'X-API-Key' },
+          detection: {
+            urlPatterns: ['my-proxy.com', 'proxy.example'],
+          },
           responseMapping: {},
         },
       };
@@ -140,9 +148,9 @@ describe('autodetect provider', () => {
       vi.spyOn(cache, 'readProviderDetectionCache').mockReturnValue(null);
       vi.spyOn(healthProbe, 'probeHealth').mockResolvedValue(null);
 
-      const provider1 = await resolveProvider('https://my-proxy.com/v1', null, customProviders, 1500);
-      const provider2 = await resolveProvider('https://proxy.example.org/api', null, customProviders, 1500);
-      const provider3 = await resolveProvider('https://api.my-proxy.com', null, customProviders, 1500);
+      const provider1 = await resolveProvider('https://my-proxy.com/v1', null, endpointConfigs, 1500);
+      const provider2 = await resolveProvider('https://proxy.example.org/api', null, endpointConfigs, 1500);
+      const provider3 = await resolveProvider('https://api.my-proxy.com', null, endpointConfigs, 1500);
 
       expect(provider1).toBe('my-proxy');
       expect(provider2).toBe('my-proxy');

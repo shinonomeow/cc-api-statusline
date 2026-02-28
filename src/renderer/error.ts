@@ -24,7 +24,8 @@ export type ErrorState =
   | 'new-credentials'
   | 'new-endpoint'
   | 'auth-error-waiting'
-  | 'timeout';
+  | 'timeout'
+  | 'endpoint-config-changed';
 
 /**
  * Error rendering mode
@@ -115,6 +116,8 @@ function renderStandaloneError(
       return `${warningIcon} Set ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN`;
     case 'timeout':
       return `${warningIcon} Fetching...`;
+    case 'endpoint-config-changed':
+      return `${warningIcon} Endpoint config changed — run: cc-api-statusline --apply-config`;
     case 'network-error':
     case 'server-error':
     case 'parse-error':

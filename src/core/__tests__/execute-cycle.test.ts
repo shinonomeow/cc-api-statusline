@@ -37,6 +37,24 @@ describe('executeCycle', () => {
     data: createMockUsage(),
     renderedLine: 'Test statusline',
     configHash: 'config123',
+    endpointConfigHash: 'test-hash',
+    errorState: null,
+    ...overrides,
+  });
+
+  const createMockContext = (overrides?: Partial<ExecutionContext>): ExecutionContext => ({
+    env: baseEnv,
+    config: baseConfig,
+    configHash: 'config123',
+    endpointConfigHash: 'test-hash',
+    endpointConfigs: {},
+    endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
+    cachedEntry: null,
+    providerId: 'test-provider',
+    provider: mockProvider,
+    timeoutBudgetMs: 1000,
+    startTime: Date.now(),
+    fetchTimeoutMs: 800,
     ...overrides,
   });
 
@@ -49,19 +67,13 @@ describe('executeCycle', () => {
       const cachedEntry = createMockEntry({
         renderedLine: 'Cached output',
         configHash: 'config123',
+        endpointConfigHash: 'endpoint123',
       });
 
-      const ctx: ExecutionContext = {
-        env: baseEnv,
-        config: baseConfig,
-        configHash: 'config123',
+      const ctx = createMockContext({
         cachedEntry,
-        providerId: 'test-provider',
-        provider: mockProvider,
-        timeoutBudgetMs: 1000,
-        startTime: Date.now(),
-        fetchTimeoutMs: 800,
-      };
+        endpointConfigHash: 'endpoint123',
+      });
 
       const result = await executeCycle(ctx);
 
@@ -85,6 +97,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'newconfig',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry,
         providerId: 'test-provider',
         provider,
@@ -116,6 +131,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry,
         providerId: 'new-provider',
         provider,
@@ -137,6 +155,7 @@ describe('executeCycle', () => {
     it('should re-render from cached data when configHash changes', async () => {
       const cachedEntry = createMockEntry({
         configHash: 'oldconfig',
+        endpointConfigHash: 'test-hash',
         renderedLine: 'Old rendering',
       });
 
@@ -144,6 +163,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'newconfig',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry,
         providerId: 'test-provider',
         provider: mockProvider,
@@ -174,6 +196,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry: null,
         providerId: 'test-provider',
         provider,
@@ -205,6 +230,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry,
         providerId: 'test-provider',
         provider,
@@ -235,6 +263,9 @@ describe('executeCycle', () => {
         env: envWithOverride,
         config: { ...baseConfig, pollIntervalSeconds: 30 },
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry: null,
         providerId: 'test-provider',
         provider,
@@ -257,6 +288,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry: null,
         providerId: 'test-provider',
         provider,
@@ -283,6 +317,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry,
         providerId: 'test-provider',
         provider: mockProvider,
@@ -305,6 +342,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry: null,
         providerId: 'test-provider',
         provider: mockProvider,
@@ -336,6 +376,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry,
         providerId: 'test-provider',
         provider,
@@ -361,6 +404,9 @@ describe('executeCycle', () => {
         env: baseEnv,
         config: baseConfig,
         configHash: 'config123',
+        endpointConfigHash: 'test-hash',
+        endpointConfigs: {},
+        endpointLock: { hash: 'test-hash', lockedAt: '2026-01-01T00:00:00Z' },
         cachedEntry: null,
         providerId: 'test-provider',
         provider,

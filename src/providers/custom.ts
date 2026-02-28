@@ -1,26 +1,35 @@
 /**
- * Custom Provider Support
+ * Custom Provider Support (LEGACY - THIN ADAPTER)
  *
- * Config-driven provider adapter with JSONPath response mapping
+ * DEPRECATED: This file is a backward-compatibility adapter that delegates
+ * to endpoint-fetch.ts. New code should use endpoint-fetch.ts directly.
+ *
+ * The validateCustomProvider function is kept for test compatibility.
+ * The fetchCustom function converts CustomProviderConfig to EndpointConfig
+ * and delegates to the new implementation.
  */
+
+/* eslint-disable @typescript-eslint/no-deprecated */
 
 import type { NormalizedUsage, Config } from '../types/index.js';
 import type { CustomProviderConfig } from '../types/index.js';
-import { secureFetch } from './http.js';
-import { resolveUserAgent } from '../services/user-agent.js';
-import { logger } from '../services/logger.js';
+import type { EndpointConfig } from '../types/endpoint-config.js';
+import { fetchEndpoint } from './endpoint-fetch.js';
 import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
-import { mapResponseToUsage } from './custom-mapping.js';
 
 /**
- * Validate custom provider providerConfig per spec-custom-providers.md
+ * Validate custom provider config (legacy)
+ *
+ * Kept for test backward compatibility.
+ *
+ * @deprecated Use validateEndpointConfig from endpoint-fetch.ts instead
  */
 export function validateCustomProvider(providerConfig: CustomProviderConfig): string | null {
   if (!providerConfig.id) return 'Custom provider missing required field: id';
   if (!providerConfig.endpoint) return 'Custom provider missing required field: endpoint';
   if (!providerConfig.method) return 'Custom provider missing required field: method';
   if (!providerConfig.auth) return 'Custom provider missing required field: auth';
-  if (!providerConfig.responseMapping) return 'Custom provider missing required field: responseMapping';
+  if (!providerConfig.responseMapping) return 'Custom provider responseMapping must include billingMode';
 
   // Endpoint must start with /
   if (!providerConfig.endpoint.startsWith('/')) {
@@ -32,7 +41,7 @@ export function validateCustomProvider(providerConfig: CustomProviderConfig): st
     return 'Custom provider responseMapping must include billingMode';
   }
 
-  // Validate auth providerConfig
+  // Validate auth config
   if (providerConfig.auth.type === 'header' && !providerConfig.auth.header) {
     return 'Custom provider auth.type="header" requires auth.header';
   }
@@ -49,7 +58,11 @@ export function validateCustomProvider(providerConfig: CustomProviderConfig): st
 }
 
 /**
- * Fetch and normalize custom provider usage data
+ * Fetch and normalize custom provider usage data (legacy adapter)
+ *
+ * Converts CustomProviderConfig to EndpointConfig and delegates to endpoint-fetch.ts.
+ *
+ * @deprecated Use fetchEndpoint from endpoint-fetch.ts with EndpointConfig instead
  */
 export async function fetchCustom(
   baseUrl: string,
@@ -58,71 +71,35 @@ export async function fetchCustom(
   providerConfig: CustomProviderConfig,
   timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
 ): Promise<NormalizedUsage> {
-  // Validate providerConfig
+  // Validate config
   const validationError = validateCustomProvider(providerConfig);
   if (validationError) {
-    throw new Error(`Invalid custom provider providerConfig: ${validationError}`);
+    throw new Error(`Invalid custom provider config: ${validationError}`);
   }
 
-  const url = `${baseUrl}${providerConfig.endpoint}`;
-
-  // Build headers
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
+  // Convert CustomProviderConfig to EndpointConfig
+  const endpointConfig: EndpointConfig = {
+    provider: providerConfig.id,
+    displayName: providerConfig.displayName,
+    endpoint: {
+      path: providerConfig.endpoint,
+      method: providerConfig.method,
+      contentType: providerConfig.contentType,
+    },
+    auth: {
+      type: providerConfig.auth.type === 'header' ? 'custom-header' : 'body-key',
+      header: providerConfig.auth.header,
+      prefix: providerConfig.auth.prefix,
+      bodyField: providerConfig.auth.bodyField,
+    },
+    detection: {
+      urlPatterns: providerConfig.urlPatterns,
+    },
+    requestBody: providerConfig.requestBody,
+    responseMapping: providerConfig.responseMapping,
+    spoofClaudeCodeUA: providerConfig.spoofClaudeCodeUA,
   };
 
-  if (providerConfig.contentType) {
-    headers['Content-Type'] = providerConfig.contentType;
-  }
-
-  // Add auth header if type is header
-  if (providerConfig.auth.type === 'header' && providerConfig.auth.header) {
-    const prefix = providerConfig.auth.prefix ?? '';
-    headers[providerConfig.auth.header] = `${prefix}${token}`;
-  }
-
-  // Build request body
-  let body: string | undefined;
-  if (providerConfig.method === 'POST') {
-    if (providerConfig.auth.type === 'body' && providerConfig.auth.bodyField) {
-      // Merge auth into requestBody
-      const bodyObj = { ...providerConfig.requestBody };
-      bodyObj[providerConfig.auth.bodyField] = token;
-      body = JSON.stringify(bodyObj);
-    } else if (providerConfig.requestBody) {
-      body = JSON.stringify(providerConfig.requestBody);
-    }
-  }
-
-  // Resolve User-Agent with per-provider override
-  const providerUA = providerConfig.spoofClaudeCodeUA;
-  const globalUA = appConfig.spoofClaudeCodeUA;
-  const effectiveUA = providerUA !== undefined ? providerUA : globalUA;
-  const resolvedUA = resolveUserAgent(effectiveUA);
-
-  if (resolvedUA) {
-    logger.debug(`Using User-Agent for ${providerConfig.id}: ${resolvedUA}`);
-  }
-
-  const responseText = await secureFetch(
-    url,
-    {
-      method: providerConfig.method,
-      headers,
-      body,
-    },
-    timeoutMs,
-    resolvedUA
-  );
-
-  const responseData = JSON.parse(responseText) as Record<string, unknown>;
-
-  // Map response to NormalizedUsage using extracted mapping logic
-  const result = mapResponseToUsage(
-    responseData,
-    providerConfig.responseMapping,
-    providerConfig
-  );
-
-  return result;
+  // Delegate to the new implementation
+  return fetchEndpoint(baseUrl, token, appConfig, endpointConfig, timeoutMs);
 }

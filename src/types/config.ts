@@ -184,8 +184,11 @@ export interface DisplayConfig {
   nerdFont?: 'auto' | boolean; // Nerd font availability, default: 'auto'
 }
 
+/* eslint-disable @typescript-eslint/no-deprecated */
+
 /**
- * Custom provider auth configuration
+ * @deprecated Legacy type for custom provider auth. Use EndpointConfig auth field instead.
+ * Kept for backward compatibility with src/providers/custom.ts.
  */
 export interface CustomProviderAuthConfig {
   type: 'header' | 'body';
@@ -195,7 +198,8 @@ export interface CustomProviderAuthConfig {
 }
 
 /**
- * Custom provider response mapping (JSONPath or literal values)
+ * @deprecated Legacy type for custom provider response mapping. Use EndpointConfig responseMapping instead.
+ * Kept for backward compatibility with src/providers/custom-mapping.ts.
  */
 export interface CustomProviderResponseMapping {
   billingMode?: string; // "subscription" | "balance" or JSONPath
@@ -238,7 +242,8 @@ export interface CustomProviderResponseMapping {
 }
 
 /**
- * Custom provider configuration
+ * @deprecated Legacy type for custom provider configuration. Use EndpointConfig instead.
+ * Kept for backward compatibility with src/providers/custom.ts.
  */
 export interface CustomProviderConfig {
   id: string; // Unique provider identifier
@@ -254,14 +259,16 @@ export interface CustomProviderConfig {
 }
 
 /**
- * Main configuration
+ * Main configuration (style and timing only)
+ *
+ * Breaking change: customProviders removed — all endpoint configs
+ * now live in api-config/ folder. See src/types/endpoint-config.ts.
  */
 export interface Config {
   display: DisplayConfig;
   components: ComponentsConfig;
   colors?: ColorsConfig;
   spoofClaudeCodeUA?: boolean | string; // User-Agent spoofing: false/undefined = none, true = auto-detect, "string" = exact UA
-  customProviders?: Record<string, CustomProviderConfig>;
   pollIntervalSeconds?: number; // Default: 30, minimum: 5
   pipedRequestTimeoutMs?: number; // Default: 800, for piped mode fetch timeout
 }
@@ -295,22 +302,66 @@ export const DEFAULT_CONFIG: Config = {
   colors: {
     auto: {
       tiers: [
-        { color: 'cool', maxPercent: 30 },
-        { color: 'comfortable', maxPercent: 65 },
-        { color: 'warm', maxPercent: 80 },
-        { color: 'hot', maxPercent: 90 },
-        { color: 'critical', maxPercent: 100 },
+        { color: 'cool', maxPercent: 37.5 },
+        { color: 'comfortable', maxPercent: 62.5 },
+        { color: 'warm', maxPercent: 75 },
+        { color: 'hot', maxPercent: 85 },
+        { color: 'critical', maxPercent: 92.5 },
+      ],
+    },
+    vibrant: {
+      tiers: [
+        { color: '#00D9FF', maxPercent: 37.5 },
+        { color: '#4ADE80', maxPercent: 62.5 },
+        { color: '#FDE047', maxPercent: 75 },
+        { color: '#FB923C', maxPercent: 85 },
+        { color: '#F87171', maxPercent: 92.5 },
+      ],
+    },
+    pastel: {
+      tiers: [
+        { color: 'pastel-cool', maxPercent: 37.5 },
+        { color: 'pastel-comfortable', maxPercent: 62.5 },
+        { color: 'pastel-medium', maxPercent: 75 },
+        { color: 'pastel-warm', maxPercent: 85 },
+        { color: 'pastel-hot', maxPercent: 92.5 },
+      ],
+    },
+    bright: {
+      tiers: [
+        { color: 'bright-cool', maxPercent: 37.5 },
+        { color: 'bright-comfortable', maxPercent: 62.5 },
+        { color: 'bright-medium', maxPercent: 75 },
+        { color: 'bright-warm', maxPercent: 85 },
+        { color: 'bright-hot', maxPercent: 92.5 },
+      ],
+    },
+    ocean: {
+      tiers: [
+        { color: 'ocean-cool', maxPercent: 37.5 },
+        { color: 'ocean-comfortable', maxPercent: 62.5 },
+        { color: 'ocean-medium', maxPercent: 75 },
+        { color: 'ocean-warm', maxPercent: 85 },
+        { color: 'ocean-hot', maxPercent: 92.5 },
+      ],
+    },
+    neutral: {
+      tiers: [
+        { color: 'neutral-cool', maxPercent: 37.5 },
+        { color: 'neutral-comfortable', maxPercent: 62.5 },
+        { color: 'neutral-warm', maxPercent: 75 },
+        { color: 'neutral-hot', maxPercent: 85 },
+        { color: 'neutral-critical', maxPercent: 92.5 },
       ],
     },
     chill: {
       low: 'cyan',
       medium: 'blue',
       high: 'magenta',
-      lowThreshold: 50,
-      highThreshold: 80,
+      lowThreshold: 62.5,
+      highThreshold: 87.5,
     },
   },
-  customProviders: {},
   pollIntervalSeconds: 30,
   pipedRequestTimeoutMs: 800,
 };
