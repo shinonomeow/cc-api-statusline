@@ -193,6 +193,28 @@ export interface Config {
 export const DEFAULT_DIVIDER_CONFIG: DividerConfig = { text: '|', margin: 1, color: '#555753' };
 
 /**
+ * Default percentage thresholds for the five color tiers.
+ * Used by buildTiers() and as the canonical fallback when no custom thresholds are provided.
+ */
+export const DEFAULT_TIER_THRESHOLDS = [37.5, 62.5, 75, 87.5, 100] as const;
+
+/**
+ * Zip a colors array with a thresholds array to produce a ColorTier[].
+ * Both arrays must be the same length; throws otherwise.
+ */
+export function buildTiers(
+  colors: readonly string[],
+  thresholds: readonly number[] = DEFAULT_TIER_THRESHOLDS
+): ColorTier[] {
+  if (colors.length !== thresholds.length) {
+    throw new Error(
+      `buildTiers: colors.length (${colors.length}) must equal thresholds.length (${thresholds.length})`
+    );
+  }
+  return colors.map((color, i) => ({ color, maxPercent: thresholds[i] }));
+}
+
+/**
  * Default configuration
  */
 export const DEFAULT_CONFIG: Config = {
