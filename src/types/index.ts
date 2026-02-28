@@ -44,6 +44,8 @@ export {
   COMPONENT_SHORT_LABELS,
   COMPONENT_FULL_LABELS,
   DEFAULT_COMPONENT_ORDER,
+  DEFAULT_TIER_THRESHOLDS,
+  buildTiers,
 } from './config.js';
 
 // Cache types
