@@ -220,7 +220,17 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
     timeoutBudgetMs: ctx.timeoutBudgetMs,
     fetchTimeoutMs: ctx.fetchTimeoutMs
   });
-  const result = await executeCycle(ctx);
+  let result: Awaited<ReturnType<typeof executeCycle>>;
+  try {
+    result = await executeCycle(ctx);
+  } catch (error: unknown) {
+    logger.error('Execution cycle failed', { error: String(error) });
+    const errorOutput = renderError('network-error', 'without-cache');
+    const formattedOutput = formatOutput(errorOutput, isPiped);
+    process.stdout.write(formattedOutput);
+    logger.debug('=== cc-api-statusline execution completed ===');
+    process.exit(0);
+  }
 
   const executionTime = Date.now() - startTime;
   logger.debug('Execution completed', {

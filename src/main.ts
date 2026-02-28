@@ -22,6 +22,9 @@ function discardStdin(): void {
     process.stdin.on('data', () => {
       // Discard data
     });
+    process.stdin.on('error', () => {
+      // Suppress pipe errors (EPIPE/ECONNRESET when Claude Code closes stdin)
+    });
   }
 }
 
@@ -74,6 +77,13 @@ async function main(): Promise<void> {
   // Execute piped mode or --once mode
   await executePipedMode(args);
 }
+
+// Belt-and-suspenders: catch any synchronous throws that bypass main().catch()
+// (e.g. unexpected EventEmitter error events on other streams)
+process.on('uncaughtException', (error: Error) => {
+  logger.error('Uncaught exception', { error: String(error) });
+  process.exit(0); // exit 0 — blank statusline is better than [Exit: 1]
+});
 
 // Run main and handle unhandled errors
 main().catch((error: unknown) => {
