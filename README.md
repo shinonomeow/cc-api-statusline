@@ -322,25 +322,30 @@ export ANTHROPIC_AUTH_TOKEN="your-relay-token"
 
 ### Custom Providers
 
-Define custom providers in config.json:
+Define custom providers via JSON files in `~/.claude/cc-api-statusline/api-config/`:
 
-```json
+```bash
+# Create the config file
+cat > ~/.claude/cc-api-statusline/api-config/my-provider.json << 'EOF'
 {
-  "customProviders": {
-    "my-provider": {
-      "urlPatterns": ["my-proxy.example.com"],
-      "endpoint": "/api/usage",
-      "method": "GET",
-      "authMode": "bearer",
-      "responseMapping": {
-        "billingMode": "$.mode",
-        "daily.used": "$.usage.daily",
-        "daily.limit": "$.limits.daily"
-      }
-    }
+  "provider": "my-provider",
+  "displayName": "My API",
+  "endpoint": { "path": "/api/usage", "method": "GET" },
+  "auth": { "type": "bearer-header" },
+  "detection": { "urlPatterns": ["my-proxy.example.com"] },
+  "responseMapping": {
+    "billingMode": "subscription",
+    "daily.used": "$.usage.daily",
+    "daily.limit": "$.limits.daily"
   }
 }
+EOF
+
+# Apply config to update lock file and clear caches
+cc-api-statusline --apply-config
 ```
+
+See [API Config Reference](docs/api-config-reference.md) for the full schema.
 
 ## CLI Usage
 
@@ -402,6 +407,11 @@ Debug logs include:
 - Fetch timing and performance metrics
 - Cache operations
 - Error details with fallback behavior
+
+Log files are automatically rotated (1-in-20 invocations):
+- `debug.log` ≥ 500 KB → archived as `debug.YYYY-MM-DDTHH-MM.log`
+- Archives older than 24h are compressed with gzip
+- Compressed archives older than 3 days are deleted
 
 ## Performance
 
@@ -577,7 +587,7 @@ bun run check
 
 ## Testing
 
-- **578 tests** across **34 test files**
+- **682 tests** across **39 test files**
 - Unit tests for all services, renderers, and shared utilities
 - Core execution path tests (A/B/C/D)
 - E2E smoke tests with isolated environments

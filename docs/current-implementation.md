@@ -1,6 +1,6 @@
 # Current Implementation (Snapshot)
 
-> Last updated: 2026-02-27
+> Last updated: 2026-02-28
 > This file reflects the actual code in `src/`.
 > For complete rules and implementation guidance, use `docs/implementation-handbook.md`.
 
@@ -34,10 +34,12 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 
 ### `executePipedMode` flow (`src/cli/piped-mode.ts`)
 
-1. `buildExecutionContext(args)` — reads env, config, cache, resolves provider
-2. run `executeCycle()` (`src/core/execute-cycle.ts`)
-3. `formatOutput(output, isPiped)` — prepend ANSI reset, replace spaces with NBSP in piped mode
-4. write cache if updated, exit with result code
+1. Read `CC_STATUSLINE_TIMEOUT` (default 1000ms)
+2. **Watchdog timer** (piped mode only): schedule `setTimeout` at `rawTimeoutMs - 100ms`; if fired, write `⟳ Refreshing...` to stdout and `process.exit(0)` — prevents `[Signal: SIGKILL]` from Claude Code
+3. `buildExecutionContext(args)` — reads env, config, cache, resolves provider
+4. run `executeCycle()` (`src/core/execute-cycle.ts`)
+5. `formatOutput(output, isPiped)` — prepend ANSI reset, replace spaces with NBSP in piped mode
+6. write cache if updated, exit with result code
 
 ## Unified execution core paths (`executeCycle`)
 
@@ -70,7 +72,12 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 
 ## Debug logging
 
-When enabled via `DEBUG=1` or `CC_STATUSLINE_DEBUG=1`, the logger (`src/services/logger.ts`) writes detailed execution logs to `~/.claude/cc-api-statusline/debug.log`:
+When enabled via `DEBUG=1` or `CC_STATUSLINE_DEBUG=1`, the logger (`src/services/logger.ts`) writes detailed execution logs to `~/.claude/cc-api-statusline/debug.log`.
+
+**Log rotation** (`src/services/log-rotator.ts`): Called in the Logger constructor on each debug-enabled invocation (probabilistic: 1/20 chance). Rotation policy:
+- Size ≥ 500 KB and age < 24h → rename to `debug.YYYY-MM-DDTHH-MM.log` (plain)
+- Age ≥ 24h → rename then gzip in detached child process
+- Cleanup pass: gzip plain archives older than 24h; delete `.log.gz` archives older than 3 days
 
 - Execution start/finish with timestamps
 - Mode detection (piped vs TTY)
@@ -101,7 +108,7 @@ node dist/cc-api-statusline.js --uninstall
 ## Testing status
 
 - Full gate command: `bun run check`
-- Current suite: **477 tests** / **30 files**
+- Current suite: **682 tests** / **39 files**
 - Includes: unit tests, renderer tests, core path tests, settings tests, E2E smoke tests, perf tests
 - CI/CD: GitHub Actions workflows for PR checks and npm publish on tags
 
@@ -111,6 +118,6 @@ node dist/cc-api-statusline.js --uninstall
 - `src/cli/` — args, commands, piped-mode
 - `src/core/` — execute-cycle, constants
 - `src/providers/` — sub2api, relay, custom, autodetect, quota-window, custom-mapping
-- `src/services/` — env, cache, config, settings, logger, atomic-write, ensure-dir
+- `src/services/` — env, cache, config, settings, logger, log-rotator, atomic-write, ensure-dir
 - `src/renderer/` — component (RenderContext), bar, colors, countdown, error, transition, icons, truncate
 - `src/types/` — config (DEFAULT_COMPONENT_ORDER typed as ComponentId[]), cache (CacheErrorState), normalized-usage

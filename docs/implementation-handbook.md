@@ -1,7 +1,7 @@
 # cc-api-statusline - Implementation Handbook (Current)
 
 This handbook is the implementation source of truth for the current repository state.
-It reflects code behavior in `src/` as of 2026-02-27.
+It reflects code behavior in `src/` as of 2026-02-28.
 
 ## 0. Scope and Precedence
 
@@ -346,6 +346,10 @@ In `execute-cycle.ts`:
 - execution deadline uses a 50ms tail buffer
 - if remaining budget <= 50ms, skip fetch and fallback immediately
 
+### Watchdog timer (`src/cli/piped-mode.ts`)
+
+Piped mode installs a watchdog `setTimeout` at `rawTimeoutMs - 100ms`. If it fires (process is about to be killed by Claude Code), it writes `⟳ Refreshing...` to stdout and calls `process.exit(0)`. This prevents the `[Signal: SIGKILL]` error indicator from appearing in the statusline when the host budget expires before the execution cycle completes.
+
 ## 9. Renderer Model
 
 ## 9.1 Components
@@ -534,7 +538,23 @@ Guidelines:
 - never log raw tokens
 - use temporary env scope for manual tests
 
-## 12.3 CI expectations
+## 12.3 Debug Log Rotation
+
+`src/services/log-rotator.ts` — called by Logger constructor on debug-mode startup (probabilistic: 1-in-20 invocations).
+
+Rotation conditions for `debug.log`:
+- **Size ≥ 500 KB, age < 24h** → rename to `debug.YYYY-MM-DDTHH-MM.log` (plain archive)
+- **Age ≥ 24h** → rename + gzip via detached child (`gzip -f`), non-blocking
+
+Cleanup pass (runs after rotation check):
+- Plain `.log` archives older than 24h → trigger gzip
+- `.log.gz` archives older than 3 days → delete
+
+All rotation operations are silent-failure (never crash the statusline).
+
+Constants (from `src/core/constants.ts`): `LOG_ROTATION_PROBABILITY`, `LOG_MAX_SIZE_BYTES`, `LOG_MAX_AGE_MS`, `LOG_RETENTION_MS`.
+
+## 12.4 CI expectations
 
 - tests build `dist` before execution
 - E2E tests validate fast-path and re-render cache behavior
