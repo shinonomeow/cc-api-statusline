@@ -593,6 +593,108 @@ describe('renderComponent - label display modes', () => {
   });
 });
 
+describe('renderComponent - divider spacing (bug fix)', () => {
+  test('tight divider "·" produces no space before divider', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(48, 100),
+    });
+    const config: ComponentConfig = {
+      progressStyle: 'hidden',
+      countdown: { divider: '·' },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    // "Daily 48%·$48/$100" — no space between 48% and ·
+    expect(plain).not.toMatch(/% ·/);
+    expect(plain).toMatch(/48%·/);
+  });
+
+  test('spaced divider " · " produces single space each side', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(48, 100),
+    });
+    const config: ComponentConfig = {
+      progressStyle: 'hidden',
+      countdown: { divider: ' · ' },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    // "Daily 48% · $48/$100" — single space each side
+    expect(plain).toContain('48% · $48/$100');
+    expect(plain).not.toContain('  ·');
+  });
+
+  test('default divider " · " does not produce double-space', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(50, 100),
+    });
+    const result = renderComponent('daily', data, { progressStyle: 'hidden' }, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('  ·');
+    expect(plain).toContain(' · ');
+  });
+});
+
+describe('renderComponent - percentage: false', () => {
+  test('hides percentage when percentage: false', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(48, 100),
+    });
+    const config: ComponentConfig = { percentage: false, progressStyle: 'hidden', countdown: false };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('%');
+    expect(plain).toContain('Daily');
+  });
+
+  test('percentage: false + hidden progress + tight divider → countdown appended to label', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(23, 50),
+    });
+    const config: ComponentConfig = {
+      percentage: false,
+      progressStyle: 'hidden',
+      countdown: { divider: '·' },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('%');
+    expect(plain).toMatch(/Daily·/);
+  });
+
+  test('percentage: false + hidden progress → countdown appended to label', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(23, 50),
+    });
+    const config: ComponentConfig = {
+      percentage: false,
+      progressStyle: 'hidden',
+      countdown: { divider: ' · ' },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('%');
+    expect(plain).toContain('Daily · $23/$50');
+  });
+
+  test('percentage: false + bar progress → countdown appended to bar', () => {
+    const data = createMockUsage({
+      daily: createQuotaWindow(23, 50),
+    });
+    const config: ComponentConfig = {
+      percentage: false,
+      progressStyle: 'bar',
+      barStyle: 'classic',
+      countdown: { divider: '·' },
+    };
+    const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
+    const plain = stripAnsi(result ?? '');
+    expect(plain).not.toContain('%');
+    expect(plain).toContain('Daily');
+    expect(plain).toMatch(/━.*·\$23\/\$50/);
+  });
+});
+
 describe('renderComponent - qualifier labels (Plan B)', () => {
   test('renders qualifier in standard layout: "Weekly(Opus)"', () => {
     const data = createMockUsage({

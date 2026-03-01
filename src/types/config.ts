@@ -141,6 +141,7 @@ export interface ComponentConfig {
   colors?: PartColors; // Per-part color overrides
   label?: string | LabelConfig | false; // Custom label or false to hide
   countdown?: boolean | CountdownConfig; // Countdown sub-component (quota components only)
+  percentage?: boolean; // false to hide percentage/value display (default: true)
 }
 
 /**

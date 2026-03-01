@@ -175,9 +175,11 @@ function renderQuotaComponent(
   // Render label (with optional qualifier from QuotaWindow)
   const label = renderLabel(componentId, displayMode, componentConfig, quota.qualifier);
 
+  const showPercentage = componentConfig.percentage !== false;
+
   // Resolve colors
   const barColor = resolvePartColor('bar', usagePercent, componentConfig, globalConfig);
-  const valueColor = resolvePartColor('value', usagePercent, componentConfig, globalConfig);
+  const valueColor = showPercentage ? resolvePartColor('value', usagePercent, componentConfig, globalConfig) : null;
   const labelColor = resolvePartColor('label', usagePercent, componentConfig, globalConfig);
   const countdownColor = resolvePartColor('countdown', usagePercent, componentConfig, globalConfig);
 
@@ -185,7 +187,9 @@ function renderQuotaComponent(
   const progress = renderProgress(progressStyle, usagePercent, barSize, barStyle, barColor, null, renderContext);
 
   // Render value (percentage)
-  const value = ansiColor(`${Math.round(usagePercent)}%`, valueColor, renderContext);
+  const value = showPercentage
+    ? ansiColor(`${Math.round(usagePercent)}%`, valueColor, renderContext)
+    : '';
 
   // Render secondary display (countdown or cost fallback)
   const countdown = renderSecondaryDisplay(
@@ -580,25 +584,25 @@ function assembleComponent(
   const parts: string[] = [];
 
   if (layout === 'percent-first') {
-    // Percent-first: label + value + progress + countdown
+    // Percent-first: label + value + progress
     if (coloredLabel) parts.push(coloredLabel);
-    parts.push(value);
+    if (value) parts.push(value);
     if (progress) parts.push(progress);
-    if (countdown) parts.push(countdown);
   } else {
-    // Standard: label + progress + value + countdown
+    // Standard: label + progress + value
     if (coloredLabel) parts.push(coloredLabel);
     if (progress) parts.push(progress);
-    parts.push(value);
-    if (countdown) parts.push(countdown);
+    if (value) parts.push(value);
   }
 
-  // Join parts with space, then handle countdown dividers
-  // If countdown starts with space (e.g., " · "), we get double space: "28% " + " · 2h54m"
-  // Remove one space to avoid "28%  · 2h54m" becoming "28% · 2h54m"
-  // The regex accounts for ANSI escape sequences that may appear between spaces
-  // eslint-disable-next-line no-control-regex
-  return parts.filter((p) => p).join(' ').replace(/ (\x1b\[[0-9;]*m)? ([·•])/g, '$1 $2');
+  // Countdown is always last — append directly to avoid an extra join-space before the divider
+  if (countdown && parts.length > 0) {
+    parts[parts.length - 1] += countdown;
+  } else if (countdown) {
+    parts.push(countdown);
+  }
+
+  return parts.join(' ');
 }
 
 /**
