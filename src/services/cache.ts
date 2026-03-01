@@ -9,9 +9,10 @@ import { join } from 'path';
 import { homedir } from 'os';
 import type { CacheEntry, EnvSnapshot, Config, ProviderDetectionCacheEntry } from '../types/index.js';
 import { CACHE_VERSION, isCacheEntry, isProviderDetectionCacheEntry } from '../types/index.js';
-import { shortHash, sha256 } from './hash.js';
+import { shortHash } from './hash.js';
 import { ensureDir } from './ensure-dir.js';
 import { atomicWriteFile } from './atomic-write.js';
+import { logger } from './logger.js';
 
 /**
  * Get cache directory path
@@ -62,13 +63,13 @@ export function readCache(baseUrl: string): CacheEntry | null {
 
     // Validate structure
     if (!isCacheEntry(data)) {
-      console.warn(`Invalid cache structure at ${path}`);
+      logger.warn(`Invalid cache structure at ${path}`);
       return null;
     }
 
     return data;
   } catch (error: unknown) {
-    console.warn(`Failed to read cache from ${path}: ${error}`);
+    logger.warn(`Failed to read cache from ${path}: ${error}`);
     return null;
   }
 }
@@ -93,7 +94,7 @@ export function writeCache(baseUrl: string, entry: CacheEntry): void {
     // Write atomically
     atomicWriteFile(path, content);
   } catch (error: unknown) {
-    console.warn(`Failed to write cache to ${path}: ${error}`);
+    logger.warn(`Failed to write cache to ${path}: ${error}`);
   }
 }
 
@@ -190,19 +191,21 @@ export function isCacheRenderedLineUsable(
 export function computeConfigHash(configPath: string): string {
   if (!existsSync(configPath)) {
     // Sentinel hash for missing config file
-    return sha256('').slice(0, 12);
+    return shortHash('', 12);
   }
 
   try {
     const bytes = readFileSync(configPath);
     return shortHash(bytes.toString('utf-8'), 12);
   } catch (error: unknown) {
-    console.warn(`Failed to read config for hash: ${error}`);
-    return sha256('').slice(0, 12);
+    logger.warn(`Failed to read config for hash: ${error}`);
+    return shortHash('', 12);
   }
 }
 
 /**
+ * @internal — test-only
+ *
  * Get cache age in seconds
  *
  * @param entry - Cache entry
@@ -282,7 +285,7 @@ export function readProviderDetectionCache(baseUrl: string): ProviderDetectionCa
 
     // Validate structure
     if (!isProviderDetectionCacheEntry(data)) {
-      console.warn(`Invalid provider detection cache structure at ${path}`);
+      logger.warn(`Invalid provider detection cache structure at ${path}`);
       return null;
     }
 
@@ -304,7 +307,7 @@ export function readProviderDetectionCache(baseUrl: string): ProviderDetectionCa
 
     return data;
   } catch (error: unknown) {
-    console.warn(`Failed to read provider detection cache from ${path}: ${error}`);
+    logger.warn(`Failed to read provider detection cache from ${path}: ${error}`);
     return null;
   }
 }
@@ -329,6 +332,6 @@ export function writeProviderDetectionCache(baseUrl: string, entry: ProviderDete
     // Write atomically
     atomicWriteFile(path, content);
   } catch (error: unknown) {
-    console.warn(`Failed to write provider detection cache to ${path}: ${error}`);
+    logger.warn(`Failed to write provider detection cache to ${path}: ${error}`);
   }
 }

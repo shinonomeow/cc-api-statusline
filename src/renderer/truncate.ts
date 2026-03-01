@@ -5,6 +5,8 @@
  * and truncation with ellipsis suffix.
  */
 
+import { stripAnsi } from './colors.js';
+
 /**
  * Get terminal width
  *
@@ -52,11 +54,7 @@ export function computeMaxWidth(termWidth: number, maxWidthPct: number): number 
  * @returns Visible character count
  */
 export function visibleLength(text: string): number {
-  // Strip ANSI escape sequences: \x1b[...m
-  // Pattern: ESC [ (any non-letter chars) letter
-  // eslint-disable-next-line no-control-regex
-  const stripped = text.replace(/\x1b\[[0-9;]*m/g, '');
-  return stripped.length;
+  return stripAnsi(text).length;
 }
 
 /**

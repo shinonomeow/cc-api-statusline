@@ -229,6 +229,8 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
 }
 
 /**
+ * @internal — test-only
+ *
  * Convert hex color to ANSI RGB escape code
  *
  * @param hex - Hex color string (#rgb or #rrggbb)

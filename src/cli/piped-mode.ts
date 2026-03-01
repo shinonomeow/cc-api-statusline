@@ -31,6 +31,14 @@ class StatuslineError extends Error {
   }
 }
 
+function safeStdoutWrite(data: string): void {
+  try {
+    process.stdout['write'](data);
+  } catch {
+    // EPIPE — pipe closed, exit silently
+  }
+}
+
 function readAndValidateEnv(): { env: EnvSnapshot; baseUrl: string } {
   const env = readCurrentEnv();
   logger.debug('Environment loaded', {
@@ -47,7 +55,7 @@ function readAndValidateEnv(): { env: EnvSnapshot; baseUrl: string } {
 
   const { baseUrl } = env;
   if (!baseUrl) {
-    process.exit(1);
+    process.exit(0);
   }
 
   return { env, baseUrl };
@@ -231,7 +239,7 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
       logger.error('Watchdog timeout - forcing clean exit', { watchdogMs });
       const fallback = dimText('\u27F3 Refreshing...');
       const formatted = formatOutput(fallback, isPiped);
-      process.stdout.write(formatted);
+      safeStdoutWrite(formatted);
       process.exit(0);
     }, watchdogMs).unref();
   }
@@ -246,7 +254,7 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
     const errorType = error instanceof StatuslineError ? error.errorType : 'network-error';
     const errorOutput = renderError(errorType, 'without-cache');
     const formattedOutput = formatOutput(errorOutput, isPiped);
-    process.stdout.write(formattedOutput);
+    safeStdoutWrite(formattedOutput);
     logger.debug('=== cc-api-statusline execution completed ===');
     process.exit(0);
   }
@@ -263,7 +271,7 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
     logger.error('Execution cycle failed', { error: String(error) });
     const errorOutput = renderError('network-error', 'without-cache');
     const formattedOutput = formatOutput(errorOutput, isPiped);
-    process.stdout.write(formattedOutput);
+    safeStdoutWrite(formattedOutput);
     logger.debug('=== cc-api-statusline execution completed ===');
     process.exit(0);
   }
@@ -278,7 +286,7 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
 
   // Format and write output
   const formattedOutput = formatOutput(result.output, isPiped);
-  process.stdout.write(formattedOutput);
+  safeStdoutWrite(formattedOutput);
 
   // Write cache update if present
   if (result.cacheUpdate) {

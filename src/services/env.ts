@@ -6,6 +6,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { shortHash } from './hash.js';
+import { logger } from './logger.js';
 
 /**
  * Environment snapshot
@@ -67,7 +68,7 @@ function readSettingsJsonEnv(): Record<string, string> {
     return {};
   } catch (error: unknown) {
     // Ignore errors reading settings.json - not critical
-    console.warn(`Warning: Could not read settings.json: ${error}`);
+    logger.warn(`Could not read settings.json: ${error}`);
     return {};
   }
 }

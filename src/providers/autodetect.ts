@@ -27,6 +27,11 @@ interface DetectionCacheEntry {
  */
 const detectionCache = new Map<string, DetectionCacheEntry>();
 
+interface DetectProviderFromUrlPatternOptions {
+  includeBuiltInPatterns?: boolean;
+  fallbackProvider?: string | null;
+}
+
 /**
  * Detect provider from base URL using URL pattern matching
  *
@@ -41,8 +46,14 @@ const detectionCache = new Map<string, DetectionCacheEntry>();
  */
 export function detectProviderFromUrlPattern(
   baseUrl: string,
-  endpointConfigs: EndpointConfigRegistry = {}
-): string {
+  endpointConfigs: EndpointConfigRegistry = {},
+  options: DetectProviderFromUrlPatternOptions = {}
+): string | null {
+  const includeBuiltInPatterns = options.includeBuiltInPatterns ?? true;
+  const fallbackProvider = Object.prototype.hasOwnProperty.call(options, 'fallbackProvider')
+    ? (options.fallbackProvider ?? null)
+    : 'sub2api';
+
   // Normalize URL for comparison (lowercase, remove trailing slash)
   const normalizedUrl = baseUrl.toLowerCase().replace(/\/$/, '');
 
@@ -64,14 +75,14 @@ export function detectProviderFromUrlPattern(
   // Check built-in providers (only distinctive URL patterns, not domain names)
   // Note: Domain-based detection removed in favor of health probe
   if (
-    normalizedUrl.includes('/apistats') ||
-    normalizedUrl.includes('/api/user-stats')
+    includeBuiltInPatterns &&
+    (normalizedUrl.includes('/apistats') || normalizedUrl.includes('/api/user-stats'))
   ) {
     return 'claude-relay-service';
   }
 
   // Default to sub2api (most common)
-  return 'sub2api';
+  return fallbackProvider;
 }
 
 /**
@@ -127,20 +138,14 @@ export async function resolveProvider(
   }
 
   // 4. Check endpoint config URL patterns
-  for (const [providerId, config] of Object.entries(endpointConfigs)) {
-    const urlPatterns = config.detection?.urlPatterns;
-    if (urlPatterns && urlPatterns.length > 0) {
-      const normalizedUrl = baseUrl.toLowerCase().replace(/\/$/, '');
-      for (const pattern of urlPatterns) {
-        const normalizedPattern = pattern.toLowerCase();
-        if (normalizedUrl.includes(normalizedPattern)) {
-          logger.debug('Provider detected via endpoint URL pattern', { provider: providerId, pattern });
-          // Cache detection
-          cacheProviderDetection(baseUrl, providerId, 'url-pattern');
-          return providerId;
-        }
-      }
-    }
+  const endpointPatternProvider = detectProviderFromUrlPattern(baseUrl, endpointConfigs, {
+    includeBuiltInPatterns: false,
+    fallbackProvider: null,
+  });
+  if (endpointPatternProvider) {
+    logger.debug('Provider detected via endpoint URL pattern', { provider: endpointPatternProvider });
+    cacheProviderDetection(baseUrl, endpointPatternProvider, 'url-pattern');
+    return endpointPatternProvider;
   }
 
   // 5. Health probe
@@ -155,6 +160,11 @@ export async function resolveProvider(
 
   // 6. Built-in URL pattern fallback
   const patternProvider = detectProviderFromUrlPattern(baseUrl, {});
+  if (!patternProvider) {
+    logger.debug('Provider URL pattern detection had no match, defaulting to sub2api');
+    cacheProviderDetection(baseUrl, 'sub2api', 'url-pattern');
+    return 'sub2api';
+  }
   logger.debug('Provider detected via built-in URL pattern', { provider: patternProvider });
   cacheProviderDetection(baseUrl, patternProvider, 'url-pattern');
   return patternProvider;

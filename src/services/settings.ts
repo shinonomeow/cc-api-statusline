@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { getSettingsJsonPath } from './env.js';
 import { atomicWriteFile } from './atomic-write.js';
+import { logger } from './logger.js';
 
 export interface ClaudeSettings {
   statusLine?: {
@@ -34,7 +35,7 @@ export function loadClaudeSettings(): ClaudeSettings {
     const content = readFileSync(path, 'utf-8');
     return JSON.parse(content) as ClaudeSettings;
   } catch (error: unknown) {
-    console.warn(`Failed to read settings from ${path}: ${error}`);
+    logger.warn(`Failed to read settings from ${path}: ${error}`);
     return {};
   }
 }

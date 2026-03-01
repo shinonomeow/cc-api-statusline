@@ -11,6 +11,7 @@ import type { Config } from '../types/index.js';
 import { DEFAULT_CONFIG } from '../types/index.js';
 import { ensureDir } from './ensure-dir.js';
 import { atomicWriteFile } from './atomic-write.js';
+import { logger } from './logger.js';
 
 /**
  * Get config directory path
@@ -77,23 +78,23 @@ function validateConfig(config: Config): Config {
 
   // Clamp maxWidth to 20-100
   if (maxWidth < 20) {
-    console.warn('Warning: display.maxWidth < 20, clamping to 20');
+    logger.warn('display.maxWidth < 20, clamping to 20');
     maxWidth = 20;
   }
   if (maxWidth > 100) {
-    console.warn('Warning: display.maxWidth > 100, clamping to 100');
+    logger.warn('display.maxWidth > 100, clamping to 100');
     maxWidth = 100;
   }
 
   // Validate pollIntervalSeconds >= 5
   if (pollIntervalSeconds !== undefined && pollIntervalSeconds < 5) {
-    console.warn('Warning: pollIntervalSeconds < 5, clamping to 5');
+    logger.warn('pollIntervalSeconds < 5, clamping to 5');
     pollIntervalSeconds = 5;
   }
 
   // Validate pipedRequestTimeoutMs
   if (pipedRequestTimeoutMs !== undefined && pipedRequestTimeoutMs < 100) {
-    console.warn('Warning: pipedRequestTimeoutMs < 100, clamping to 100');
+    logger.warn('pipedRequestTimeoutMs < 100, clamping to 100');
     pipedRequestTimeoutMs = 100;
   }
 
@@ -131,8 +132,8 @@ export function loadConfig(configPath?: string): Config {
     // Validate and clamp values
     return validateConfig(merged);
   } catch (error: unknown) {
-    console.warn(`Warning: Could not load config from ${path}: ${error}`);
-    console.warn('Using default configuration');
+    logger.warn(`Could not load config from ${path}: ${error}`);
+    logger.warn('Using default configuration');
     return DEFAULT_CONFIG;
   }
 }
@@ -165,6 +166,8 @@ export function saveConfig(config: Config, configPath?: string): void {
 }
 
 /**
+ * @internal — test-only
+ *
  * Read raw config file bytes (for configHash computation)
  *
  * Returns null if file doesn't exist.

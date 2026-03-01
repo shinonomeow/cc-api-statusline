@@ -78,6 +78,8 @@ export function formatCompactNumber(n: number): string {
 }
 
 /**
+ * @internal — test-only
+ *
  * Format a used/limit pair with compact numbers
  * Each number picks its unit independently
  *

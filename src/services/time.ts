@@ -20,6 +20,8 @@ export function computeNextMidnightLocal(): string {
 }
 
 /**
+ * @internal — test-only
+ *
  * Compute next Monday 00:00 in local timezone
  */
 export function computeNextMondayLocal(): string {
@@ -37,4 +39,3 @@ export function computeNextMondayLocal(): string {
   );
   return nextMonday.toISOString();
 }
-

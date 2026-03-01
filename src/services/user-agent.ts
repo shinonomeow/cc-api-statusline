@@ -67,7 +67,7 @@ export function detectClaudeVersion(): string | null {
     const claudePath = join(homedir(), '.claude', 'bin', 'claude');
     const result = execSync(`"${claudePath}" --version`, {
       encoding: 'utf-8',
-      timeout: 1000,
+      timeout: 100,
       stdio: ['ignore', 'pipe', 'ignore'],
     });
 

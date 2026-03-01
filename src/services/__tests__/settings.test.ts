@@ -10,6 +10,7 @@ import {
   installStatusLine,
   uninstallStatusLine,
 } from '../settings.js';
+import { logger } from '../logger.js';
 import type { ClaudeSettings } from '../settings.js';
 
 describe('settings service', () => {
@@ -66,7 +67,7 @@ describe('settings service', () => {
       const settingsPath = join(testDir, 'settings.json');
       writeFileSync(settingsPath, 'invalid json {{{');
 
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 
       const settings = loadClaudeSettings();
       expect(settings).toEqual({});

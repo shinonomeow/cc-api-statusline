@@ -6,7 +6,6 @@
  */
 
 import { join } from 'path';
-import { homedir } from 'os';
 import { existsSync } from 'fs';
 import type { Config } from '../types/index.js';
 import type { EndpointConfig } from '../types/endpoint-config.js';
@@ -15,6 +14,7 @@ import { atomicWriteFile } from './atomic-write.js';
 import { ensureDir } from './ensure-dir.js';
 import { getEndpointConfigDir, computeEndpointConfigHash, getBuiltInEndpointConfigs } from './endpoint-config.js';
 import { writeEndpointLock } from './endpoint-lock.js';
+import { getConfigDir } from './config.js';
 
 /**
  * Get default style config (config.json content)
@@ -58,7 +58,7 @@ export function getDefaultCrsConfig(): EndpointConfig {
  * Idempotent: doesn't overwrite existing files.
  */
 export function writeDefaultConfigs(customDir?: string): void {
-  const configDir = customDir || join(homedir(), '.claude', 'cc-api-statusline');
+  const configDir = customDir || getConfigDir();
   const configPath = join(configDir, 'config.json');
   const apiConfigDir = getEndpointConfigDir(customDir);
 
@@ -105,7 +105,7 @@ export function writeDefaultConfigs(customDir?: string): void {
  * - api-config/ directory doesn't exist
  */
 export function needsConfigInit(customDir?: string): boolean {
-  const configDir = customDir || join(homedir(), '.claude', 'cc-api-statusline');
+  const configDir = customDir || getConfigDir();
   const configPath = join(configDir, 'config.json');
   const apiConfigDir = getEndpointConfigDir(customDir);
 

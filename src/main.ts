@@ -93,6 +93,5 @@ process.on('uncaughtException', (error: Error) => {
 // Run main and handle unhandled errors
 main().catch((error: unknown) => {
   logger.error('Unhandled error in main', { error: String(error) });
-  console.error(`Fatal error: ${error}`);
-  process.exit(1);
+  process.exit(0);
 });

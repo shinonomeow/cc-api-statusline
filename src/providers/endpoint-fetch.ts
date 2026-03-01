@@ -16,7 +16,7 @@ import { mapResponseToUsage } from './response-mapping.js';
 /**
  * Validate endpoint config
  */
-export function validateEndpointConfig(config: EndpointConfig): string | null {
+export function validateEndpointConfigSemantics(config: EndpointConfig): string | null {
   if (!config.provider) return 'Endpoint config missing required field: provider';
   if (!config.endpoint?.path) return 'Endpoint config missing required field: endpoint.path';
   if (!config.endpoint?.method) return 'Endpoint config missing required field: endpoint.method';
@@ -52,7 +52,7 @@ export async function fetchEndpoint(
   timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
 ): Promise<NormalizedUsage> {
   // Validate config
-  const validationError = validateEndpointConfig(endpointConfig);
+  const validationError = validateEndpointConfigSemantics(endpointConfig);
   if (validationError) {
     throw new Error(`Invalid endpoint config: ${validationError}`);
   }

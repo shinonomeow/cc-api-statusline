@@ -6,10 +6,10 @@
 
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import type { EndpointConfig, EndpointConfigRegistry } from '../types/endpoint-config.js';
-import { sha256 } from './hash.js';
+import { shortHash } from './hash.js';
 import { logger } from './logger.js';
+import { getConfigDir } from './config.js';
 
 /**
  * Get endpoint config directory path
@@ -21,7 +21,7 @@ import { logger } from './logger.js';
  */
 export function getEndpointConfigDir(customRoot?: string): string {
   const envRoot = process.env['CC_API_STATUSLINE_CONFIG_DIR'];
-  const root = customRoot || envRoot || join(homedir(), '.claude', 'cc-api-statusline');
+  const root = customRoot || envRoot || getConfigDir();
   return join(root, 'api-config');
 }
 
@@ -154,7 +154,7 @@ export function computeEndpointConfigHash(customDir?: string): string {
     // No config directory, hash the built-in configs
     const builtIn = getBuiltInEndpointConfigs();
     const serialized = JSON.stringify(builtIn, Object.keys(builtIn).sort());
-    return sha256(serialized).slice(0, 12);
+    return shortHash(serialized, 12);
   }
 
   const files = readdirSync(configDir)
@@ -165,7 +165,7 @@ export function computeEndpointConfigHash(customDir?: string): string {
     // Empty directory, hash the built-in configs
     const builtIn = getBuiltInEndpointConfigs();
     const serialized = JSON.stringify(builtIn, Object.keys(builtIn).sort());
-    return sha256(serialized).slice(0, 12);
+    return shortHash(serialized, 12);
   }
 
   // Concatenate all file contents in sorted order
@@ -181,7 +181,7 @@ export function computeEndpointConfigHash(customDir?: string): string {
     }
   }
 
-  return sha256(combined).slice(0, 12);
+  return shortHash(combined, 12);
 }
 
 /**

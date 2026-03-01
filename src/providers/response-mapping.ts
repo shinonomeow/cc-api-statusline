@@ -10,6 +10,7 @@
 import type { NormalizedUsage, BillingMode, QuotaWindow, PeriodTokens } from '../types/index.js';
 import type { EndpointConfig } from '../types/endpoint-config.js';
 import { createEmptyNormalizedUsage } from '../types/index.js';
+import { computeSoonestReset } from '../types/normalized-usage.js';
 
 /**
  * Simple JSONPath resolver
@@ -236,15 +237,17 @@ export function mapResponseToUsage(
   })();
 
   // Compute soonest reset
-  const resetsAt = (() => {
-    const times: string[] = [];
-    if (daily?.resetsAt) times.push(daily.resetsAt);
-    if (weekly?.resetsAt) times.push(weekly.resetsAt);
-    if (monthly?.resetsAt) times.push(monthly.resetsAt);
-    if (times.length === 0) return null;
-    const sorted = [...times].sort();
-    return sorted[0] ?? null;
-  })();
+  const resetsAt = computeSoonestReset({
+    ...base,
+    resetSemantics: billingMode === 'balance' ? 'expiry' : 'end-of-day',
+    balance,
+    daily,
+    weekly,
+    monthly,
+    tokenStats,
+    rateLimit,
+    resetsAt: null,
+  });
 
   // Return immutable result with all extracted fields
   return {

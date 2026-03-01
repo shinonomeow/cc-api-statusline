@@ -9,7 +9,6 @@ import type { EndpointConfigRegistry } from '../types/endpoint-config.js';
 import { fetchSub2api } from './sub2api.js';
 import { fetchClaudeRelayService } from './claude-relay-service.js';
 import { fetchEndpoint } from './endpoint-fetch.js';
-import { resolveProvider } from './autodetect.js';
 
 /**
  * Provider adapter interface
@@ -69,27 +68,8 @@ export function getProvider(
   return null;
 }
 
-/**
- * Get provider adapter with autodetection
- *
- * @param baseUrl - ANTHROPIC_BASE_URL
- * @param providerOverride - CC_STATUSLINE_PROVIDER env override
- * @param endpointConfigs - Endpoint config registry
- * @param probeTimeoutMs - Health probe timeout in milliseconds
- * @returns Provider adapter or null if not found
- */
-export async function getProviderWithAutodetect(
-  baseUrl: string,
-  providerOverride: string | null,
-  endpointConfigs: EndpointConfigRegistry = {},
-  probeTimeoutMs: number = 1500
-): Promise<ProviderAdapter | null> {
-  const providerId = await resolveProvider(baseUrl, providerOverride, endpointConfigs, probeTimeoutMs);
-  return getProvider(providerId, endpointConfigs);
-}
-
 // Re-export useful types and functions
 export { resolveProvider, invalidateDetectionCache, clearDetectionCache } from './autodetect.js';
-export { validateEndpointConfig } from './endpoint-fetch.js';
+export { validateEndpointConfigSemantics } from './endpoint-fetch.js';
 export { extractOrigin, probeHealth } from './health-probe.js';
 export type { EndpointConfig, EndpointConfigRegistry } from '../types/endpoint-config.js';

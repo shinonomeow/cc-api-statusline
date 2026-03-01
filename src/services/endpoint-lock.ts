@@ -7,8 +7,8 @@
 
 import { existsSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import { atomicWriteFile } from './atomic-write.js';
+import { getConfigDir } from './config.js';
 
 /**
  * Lock file entry structure
@@ -27,7 +27,7 @@ export function getLockFilePath(customDir?: string): string {
   if (customDir) {
     return join(customDir, '.endpoint-config.lock');
   }
-  return join(homedir(), '.claude', 'cc-api-statusline', '.endpoint-config.lock');
+  return join(getConfigDir(), '.endpoint-config.lock');
 }
 
 /**
@@ -85,6 +85,8 @@ export function writeEndpointLock(hash: string, customDir?: string): void {
 }
 
 /**
+ * @internal — test-only
+ *
  * Check if endpoint config is locked (matches current hash)
  *
  * Returns true if lock file exists and hash matches.
@@ -99,6 +101,8 @@ export function isEndpointConfigLocked(currentHash: string, customDir?: string):
 }
 
 /**
+ * @internal — test-only
+ *
  * Clear endpoint lock file
  *
  * Removes the lock file if it exists.

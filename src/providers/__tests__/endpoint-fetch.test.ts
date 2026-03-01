@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { validateEndpointConfig, fetchEndpoint } from '../endpoint-fetch.js';
+import { validateEndpointConfigSemantics, fetchEndpoint } from '../endpoint-fetch.js';
 import { DEFAULT_CONFIG } from '../../types/index.js';
 import type { Config } from '../../types/index.js';
 import type { EndpointConfig } from '../../types/endpoint-config.js';
@@ -32,12 +32,12 @@ function makeConfig(overrides: Partial<Config> = {}): Config {
 const minimalResponse = JSON.stringify({ daily: { used: 5, limit: 10 } });
 
 // ---------------------------------------------------------------------------
-// validateEndpointConfig
+// validateEndpointConfigSemantics
 // ---------------------------------------------------------------------------
 
-describe('validateEndpointConfig', () => {
+describe('validateEndpointConfigSemantics', () => {
   it('returns null for a fully valid config', () => {
-    expect(validateEndpointConfig(makeEndpointConfig())).toBeNull();
+    expect(validateEndpointConfigSemantics(makeEndpointConfig())).toBeNull();
   });
 
   it.each([
@@ -82,7 +82,7 @@ describe('validateEndpointConfig', () => {
       'Auth type="body-key" requires auth.bodyField',
     ],
   ])('returns error string for %s', (_label, config, expectedMsg) => {
-    expect(validateEndpointConfig(config)).toBe(expectedMsg);
+    expect(validateEndpointConfigSemantics(config)).toBe(expectedMsg);
   });
 });
 
