@@ -15,7 +15,7 @@
 |---|---|---|---|
 | Poll interval | 30 s | `pollIntervalSeconds` | `CC_STATUSLINE_POLL` |
 | Request timeout (poll loop) | 5 s | `requestTimeoutSeconds` | — |
-| Piped-mode request timeout | 800 ms | `pipedRequestTimeoutMs` | — |
+| Piped-mode request timeout | 3000 ms | `pipedRequestTimeoutMs` | — |
 | Max consecutive failures | 5 | `maxConsecutiveFailures` | — |
 | Pause duration after max failures | 300 s (5 min) | `pauseDurationSeconds` | — |
 
@@ -170,12 +170,12 @@ If any condition fails → cache is stale → trigger immediate fetch.
 
 ### Piped-mode deadline algorithm
 
-Piped mode has a strict host timeout in ccstatusline (default 1000 ms via widget config).
+Piped mode has a strict host timeout in ccstatusline (default 5000 ms via widget config).
 
-`requestTimeoutSeconds` governs poll-loop fetches only. Piped mode uses a separate, sub-second timeout (`pipedRequestTimeoutMs`, default 800 ms) so a network fetch can complete within the ccstatusline budget.
+`requestTimeoutSeconds` governs poll-loop fetches only. Piped mode uses a separate timeout (`pipedRequestTimeoutMs`, default 3000 ms) so a network fetch can complete within the ccstatusline budget.
 
 ```
-timeoutMs       = Number(process.env.CC_STATUSLINE_TIMEOUT ?? 1000)
+timeoutMs       = Number(process.env.CC_STATUSLINE_TIMEOUT ?? 5000)
                 // CC_STATUSLINE_TIMEOUT is optional for local testing;
                 // ccstatusline does not inject it automatically
 deadline        = startTime + timeoutMs - 50        // 50ms process-exit buffer
@@ -191,9 +191,9 @@ Priority:
 4. fallback → output "[loading...]" if nothing available within budget
 ```
 
-Example with defaults (`timeoutMs = 1000`, `pipedRequestTimeoutMs = 800`):
-- `remainingBudget ≈ 950ms` → `pipedFetchTimeout = min(900, 800) = 800ms`
-- Guard `800 > 0` → fetch is attempted with an 800ms deadline
+Example with defaults (`timeoutMs = 5000`, `pipedRequestTimeoutMs = 3000`):
+- `remainingBudget ≈ 4950ms` → `pipedFetchTimeout = min(4900, 3000) = 3000ms`
+- Guard `3000 > 0` → fetch is attempted with a 3000ms deadline
 
 Never start a network fetch if `pipedFetchTimeout ≤ 0`. Prefer stale cached data over risking a timeout.
 

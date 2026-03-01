@@ -51,9 +51,9 @@ describe('executeCycle', () => {
     cachedEntry: null,
     providerId: 'test-provider',
     provider: mockProvider,
-    timeoutBudgetMs: 1000,
+    timeoutBudgetMs: 5000,
     startTime: Date.now(),
-    fetchTimeoutMs: 800,
+    fetchTimeoutMs: 3000,
     ...overrides,
   });
 
@@ -101,9 +101,9 @@ describe('executeCycle', () => {
         cachedEntry,
         providerId: 'test-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -134,9 +134,9 @@ describe('executeCycle', () => {
         cachedEntry,
         providerId: 'new-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -165,9 +165,9 @@ describe('executeCycle', () => {
         cachedEntry,
         providerId: 'test-provider',
         provider: mockProvider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -197,9 +197,9 @@ describe('executeCycle', () => {
         cachedEntry: null,
         providerId: 'test-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -208,7 +208,7 @@ describe('executeCycle', () => {
       expect(result.cacheUpdate).not.toBeNull();
       expect(result.cacheUpdate?.provider).toBe('test-provider');
       expect(result.cacheUpdate?.configHash).toBe('config123');
-      expect(mockFetch).toHaveBeenCalledWith('https://api.example.com', 'test-token', baseConfig, 800);
+      expect(mockFetch).toHaveBeenCalledWith('https://api.example.com', 'test-token', baseConfig, 3000);
     });
 
     it('should fetch and render when cache is stale', async () => {
@@ -230,9 +230,9 @@ describe('executeCycle', () => {
         cachedEntry,
         providerId: 'test-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -262,9 +262,9 @@ describe('executeCycle', () => {
         cachedEntry: null,
         providerId: 'test-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -286,9 +286,9 @@ describe('executeCycle', () => {
         cachedEntry: null,
         providerId: 'test-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -371,9 +371,9 @@ describe('executeCycle', () => {
         cachedEntry,
         providerId: 'test-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);
@@ -398,9 +398,9 @@ describe('executeCycle', () => {
         cachedEntry: null,
         providerId: 'test-provider',
         provider,
-        timeoutBudgetMs: 1000,
+        timeoutBudgetMs: 5000,
         startTime: Date.now(),
-        fetchTimeoutMs: 800,
+        fetchTimeoutMs: 3000,
       };
 
       const result = await executeCycle(ctx);

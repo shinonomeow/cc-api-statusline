@@ -67,7 +67,7 @@ Optional:
 
 - `CC_STATUSLINE_PROVIDER`
 - `CC_STATUSLINE_POLL` (seconds, min 5, default 30)
-- `CC_STATUSLINE_TIMEOUT` (piped total timeout budget ms, default 1000)
+- `CC_STATUSLINE_TIMEOUT` (piped total timeout budget ms, default 5000)
 - `CC_API_STATUSLINE_CACHE_DIR` (cache dir override)
 - `CC_API_STATUSLINE_LOG_DIR` (debug log dir override)
 - `CLAUDE_CONFIG_DIR` (for `settings.json` overlay path)
@@ -123,7 +123,7 @@ Implementation: `src/services/user-agent.ts`
 - `display.maxWidth`: `100` (percentage of terminal width)
 - `display.clockFormat`: `24h`
 - `pollIntervalSeconds`: `30`
-- `pipedRequestTimeoutMs`: `800`
+- `pipedRequestTimeoutMs`: `3000`
 
 Default component visibility:
 
@@ -336,10 +336,10 @@ Behavior:
 
 In `main.ts`:
 
-- piped timeout budget: `CC_STATUSLINE_TIMEOUT` or `1000`
+- piped timeout budget: `CC_STATUSLINE_TIMEOUT` or `5000`
 - tty once budget: `10000`
 - fetch timeout:
-  - piped: `min(config.pipedRequestTimeoutMs ?? 800, timeoutBudgetMs - 100)`
+  - piped: `min(config.pipedRequestTimeoutMs ?? 3000, timeoutBudgetMs - 100)`
   - tty once: `10000`
 
 In `execute-cycle.ts`:
@@ -455,7 +455,7 @@ Host maps failures to fixed tokens:
 
 ### 10.4 Non-negotiable constraints
 
-1. piped mode must return within 1000ms default host timeout
+1. piped mode must return within 5000ms default host timeout
 2. command must accept stdin JSON but does not need to use it for provider data
 3. color output must degrade cleanly when `preserveColors` is false
 4. do not assume host sets `CC_STATUSLINE_TIMEOUT`; use safe default budget unless explicitly overridden
@@ -465,8 +465,8 @@ Host maps failures to fixed tokens:
 
 ### 11.1 Budget targets
 
-- Host default timeout: **1000ms**
-- Planning target: return output within **≤900ms**
+- Host default timeout: **5000ms**
+- Planning target: return output within **≤4900ms**
 - Safety margin: **≥50ms** tail buffer in `execute-cycle.ts`
 
 Piped-mode path targets:
@@ -499,7 +499,7 @@ Record: wall clock duration, path taken (A/B/C/D), whether deadline was met.
 ### 11.4 Release gate
 
 - p95 of warm rendered-cache path ≤100ms
-- no timeout in piped-mode tests under default 1000ms host budget
+- no timeout in piped-mode tests under default 5000ms host budget
 - fallback path returns deterministic output under offline/error scenarios
 
 ## 12. Testing and Debugging

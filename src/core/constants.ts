@@ -11,6 +11,12 @@
 export const DEFAULT_FETCH_TIMEOUT_MS = 5000;
 
 /**
+ * Default piped-mode request timeout in milliseconds
+ * Applied when pipedRequestTimeoutMs is not set in config
+ */
+export const DEFAULT_PIPED_REQUEST_TIMEOUT_MS = 3000;
+
+/**
  * Exit buffer in milliseconds
  * Reserves time to write output before timeout deadline
  */

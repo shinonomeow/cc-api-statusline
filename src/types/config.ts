@@ -185,7 +185,7 @@ export interface Config {
   colors?: ColorsConfig;
   spoofClaudeCodeUA?: boolean | string; // User-Agent spoofing: false/undefined = none, true = auto-detect, "string" = exact UA
   pollIntervalSeconds?: number; // Default: 30, minimum: 5
-  pipedRequestTimeoutMs?: number; // Default: 800, for piped mode fetch timeout
+  pipedRequestTimeoutMs?: number; // Default: 3000, for piped mode fetch timeout
 }
 
 /**
@@ -250,7 +250,7 @@ export const DEFAULT_CONFIG: Config = {
     chill:   { tiers: buildTiers(['cyan', 'cyan', 'blue', 'blue', 'magenta']) },
   },
   pollIntervalSeconds: 30,
-  pipedRequestTimeoutMs: 800,
+  pipedRequestTimeoutMs: 3000,
 };
 
 /**

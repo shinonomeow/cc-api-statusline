@@ -22,6 +22,7 @@ import { resolveProvider, getProvider } from '../providers/index.js';
 import { renderError } from '../renderer/error.js';
 import { dimText } from '../renderer/colors.js';
 import { executeCycle } from '../core/index.js';
+import { DEFAULT_PIPED_REQUEST_TIMEOUT_MS } from '../core/constants.js';
 import { logger } from '../services/logger.js';
 import { runCacheGC } from '../services/cache-gc.js';
 
@@ -118,7 +119,7 @@ async function resolveProviderWithTimeout(
 function computeTimeoutBudgets(isPiped: boolean, config: Config, timeoutMs: number): { timeoutBudgetMs: number; fetchTimeoutMs: number } {
   const timeoutBudgetMs = isPiped ? timeoutMs : 10000;
   const fetchTimeoutMs = isPiped
-    ? Math.min(config.pipedRequestTimeoutMs ?? 800, timeoutBudgetMs - 100)
+    ? Math.min(config.pipedRequestTimeoutMs ?? DEFAULT_PIPED_REQUEST_TIMEOUT_MS, timeoutBudgetMs - 100)
     : 10000;
   return { timeoutBudgetMs, fetchTimeoutMs };
 }
@@ -221,7 +222,7 @@ export async function executePipedMode(args: ParsedArgs): Promise<void> {
   logger.debug('Mode detection', { isPiped, once: args.once });
 
   // Read timeout early — needed for both watchdog and buildExecutionContext
-  const rawTimeoutMs = Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 1000);
+  const rawTimeoutMs = Number(process.env['CC_STATUSLINE_TIMEOUT'] ?? 5000);
 
   // Watchdog timer: exit cleanly before Claude Code's SIGKILL deadline
   // Fires rawTimeoutMs-100ms after start, rendering a friendly "Refreshing..." indicator

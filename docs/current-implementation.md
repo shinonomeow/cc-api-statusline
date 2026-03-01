@@ -34,7 +34,7 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 
 ### `executePipedMode` flow (`src/cli/piped-mode.ts`)
 
-1. Read `CC_STATUSLINE_TIMEOUT` (default 1000ms)
+1. Read `CC_STATUSLINE_TIMEOUT` (default 5000ms)
 2. **Watchdog timer** (piped mode only): schedule `setTimeout` at `rawTimeoutMs - 100ms`; if fired, write `⟳ Refreshing...` to stdout and `process.exit(0)` — prevents `[Signal: SIGKILL]` from Claude Code
 3. `buildExecutionContext(args)` — reads env, config, cache, resolves provider
 4. run `executeCycle()` (`src/core/execute-cycle.ts`)
@@ -66,7 +66,7 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
   - otherwise `~/.claude/settings.json`
 - Cache writes are atomic (`.tmp` + `rename`) via `atomicWriteFile()` in `src/services/atomic-write.ts`
 - Directory creation uses `ensureDir()` in `src/services/ensure-dir.ts` (mode 0700)
-- Piped timeout budget uses `CC_STATUSLINE_TIMEOUT` (default `1000ms`)
+- Piped timeout budget uses `CC_STATUSLINE_TIMEOUT` (default `5000ms`)
 - Version is read dynamically from `package.json`
 - Shared constants live in `src/core/constants.ts`: `EXIT_BUFFER_MS`, `LOADING_FALLBACK`, `DEFAULT_FETCH_TIMEOUT_MS`, `STALENESS_THRESHOLD_MINUTES`, `VERY_STALE_THRESHOLD_MINUTES`
 

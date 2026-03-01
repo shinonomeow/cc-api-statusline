@@ -177,7 +177,7 @@ All variables are optional at the shell level — `ANTHROPIC_BASE_URL` and `ANTH
 | `ANTHROPIC_AUTH_TOKEN` | Yes | API key or token |
 | `CC_STATUSLINE_PROVIDER` | Yes | Override provider detection (`sub2api`, `claude-relay-service`, or custom) |
 | `CC_STATUSLINE_POLL` | Yes | Override poll interval (seconds, min 5) |
-| `CC_STATUSLINE_TIMEOUT` | Yes | Piped mode timeout (milliseconds, default 1000) |
+| `CC_STATUSLINE_TIMEOUT` | Yes | Piped mode timeout (milliseconds, default 5000) |
 | `DEBUG` or `CC_STATUSLINE_DEBUG` | Yes | Enable debug logging to `~/.claude/cc-api-statusline/debug.log` |
 
 ## Troubleshooting
@@ -219,7 +219,7 @@ cc-api-statusline --once
 DEBUG=1 cc-api-statusline --once
 ```
 
-Verify `pipedRequestTimeoutMs` in config (default 800ms) and check `~/.claude/cc-api-statusline/cache-*.json` exists.
+Verify `pipedRequestTimeoutMs` in config (default 3000ms) and check `~/.claude/cc-api-statusline/cache-*.json` exists.
 
 ### Widget shows `[Exit: 1]` in Claude Code
 

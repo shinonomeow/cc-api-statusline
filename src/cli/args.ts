@@ -90,7 +90,7 @@ Environment Variables:
   ANTHROPIC_AUTH_TOKEN     API key (required)
   CC_STATUSLINE_PROVIDER   Override provider detection
   CC_STATUSLINE_POLL       Override poll interval (seconds)
-  CC_STATUSLINE_TIMEOUT    Piped mode timeout (milliseconds, default 1000)
+  CC_STATUSLINE_TIMEOUT    Piped mode timeout (milliseconds, default 5000)
   DEBUG or CC_STATUSLINE_DEBUG  Enable debug logging to ~/.claude/cc-api-statusline/debug.log
 
 Config File:
