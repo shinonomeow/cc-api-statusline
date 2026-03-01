@@ -7,8 +7,9 @@ import {
   ensureConfigDir,
   readRawConfigBytes,
 } from '../config.js';
-import { DEFAULT_CONFIG } from '../../types/index.js';
-import { existsSync, mkdirSync, writeFileSync, unlinkSync, rmdirSync, readdirSync } from 'fs';
+import { DEFAULT_CONFIG, DEFAULT_TIER_THRESHOLDS, buildTiers } from '../../types/index.js';
+import { writeDefaultConfigs } from '../config-defaults.js';
+import { existsSync, mkdirSync, writeFileSync, unlinkSync, rmdirSync, readdirSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -260,6 +261,95 @@ describe('config service', () => {
 
       expect(bytes).toBeTruthy();
       expect(bytes?.toString('utf-8')).toBe(content);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // buildTiers and DEFAULT_TIER_THRESHOLDS
+  // ---------------------------------------------------------------------------
+
+  describe('buildTiers', () => {
+    it('zips colors with default thresholds to produce 5 ColorTier objects', () => {
+      const colors = ['a', 'b', 'c', 'd', 'e'];
+      const tiers = buildTiers(colors);
+
+      expect(tiers).toHaveLength(5);
+      tiers.forEach((tier, i) => {
+        expect(tier.color).toBe(colors[i]);
+        expect(tier.maxPercent).toBe(DEFAULT_TIER_THRESHOLDS[i]);
+      });
+    });
+
+    it('accepts custom thresholds and produces matching ColorTier objects', () => {
+      const tiers = buildTiers(['x', 'y'], [50, 100]);
+
+      expect(tiers).toEqual([
+        { color: 'x', maxPercent: 50 },
+        { color: 'y', maxPercent: 100 },
+      ]);
+    });
+
+    it('throws when colors and thresholds lengths differ, with both lengths in message', () => {
+      expect(() => buildTiers(['a', 'b'], [1, 2, 3])).toThrow(/2/);
+      expect(() => buildTiers(['a', 'b'], [1, 2, 3])).toThrow(/3/);
+    });
+
+    it('returns new array instances on each call (immutability)', () => {
+      const colors = ['a', 'b', 'c', 'd', 'e'];
+      const result1 = buildTiers(colors);
+      const result2 = buildTiers(colors);
+
+      expect(result1).not.toBe(result2);
+    });
+  });
+
+  describe('DEFAULT_TIER_THRESHOLDS', () => {
+    it('has 5 strictly ascending values ending at 100', () => {
+      expect(DEFAULT_TIER_THRESHOLDS).toHaveLength(5);
+      expect(DEFAULT_TIER_THRESHOLDS[DEFAULT_TIER_THRESHOLDS.length - 1]).toBe(100);
+
+      for (let i = 1; i < DEFAULT_TIER_THRESHOLDS.length; i++) {
+        expect(DEFAULT_TIER_THRESHOLDS[i]!).toBeGreaterThan(DEFAULT_TIER_THRESHOLDS[i - 1]!);
+      }
+    });
+
+    it('all 7 predefined themes in DEFAULT_CONFIG share DEFAULT_TIER_THRESHOLDS maxPercent values', () => {
+      const themeNames = ['auto', 'vibrant', 'pastel', 'bright', 'ocean', 'neutral', 'chill'] as const;
+
+      for (const name of themeNames) {
+        const entry = DEFAULT_CONFIG.colors?.[name];
+        expect(entry).toBeDefined();
+        // Each entry is a ColorTieredEntry with a tiers array
+        const tieredEntry = entry as { tiers: ReadonlyArray<{ color: string; maxPercent: number }> };
+        expect(tieredEntry.tiers).toHaveLength(DEFAULT_TIER_THRESHOLDS.length);
+
+        tieredEntry.tiers.forEach((tier, i) => {
+          expect(tier.maxPercent).toBe(DEFAULT_TIER_THRESHOLDS[i]);
+        });
+      }
+    });
+  });
+
+  describe('writeDefaultConfigs — config.json colors exclusion', () => {
+    let colorsTestDir: string;
+
+    beforeEach(() => {
+      colorsTestDir = join(tmpdir(), `cc-api-statusline-colors-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      mkdirSync(colorsTestDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      if (existsSync(colorsTestDir)) {
+        rmSync(colorsTestDir, { recursive: true, force: true });
+      }
+    });
+
+    it('config.json written by writeDefaultConfigs does not contain a colors key', () => {
+      writeDefaultConfigs(colorsTestDir);
+      const raw = readFileSync(join(colorsTestDir, 'config.json'), 'utf-8');
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+      expect(Object.prototype.hasOwnProperty.call(parsed, 'colors')).toBe(false);
     });
   });
 });
