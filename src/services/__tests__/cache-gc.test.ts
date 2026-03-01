@@ -97,6 +97,34 @@ describe('runCacheGC', () => {
       const files = readdirSync(testDir).filter(f => f.startsWith('cache-') && f.endsWith('.json'));
       expect(files).toHaveLength(15);
     });
+
+    it('should keep only 20 most recent provider-detect files', () => {
+      for (let i = 0; i < 25; i++) {
+        const ageMs = i * 1000;
+        createFileWithAge(`provider-detect-${String(i).padStart(2, '0')}.json`, ageMs);
+      }
+
+      runCacheGC(testDir);
+
+      const files = readdirSync(testDir).filter(f => f.startsWith('provider-detect-') && f.endsWith('.json'));
+      expect(files).toHaveLength(20);
+
+      // The 5 oldest should be deleted
+      for (let i = 20; i < 25; i++) {
+        expect(existsSync(join(testDir, `provider-detect-${String(i).padStart(2, '0')}.json`))).toBe(false);
+      }
+    });
+
+    it('should not delete provider-detect files when count is below threshold', () => {
+      for (let i = 0; i < 15; i++) {
+        createFileWithAge(`provider-detect-${i}.json`, i * 1000);
+      }
+
+      runCacheGC(testDir);
+
+      const files = readdirSync(testDir).filter(f => f.startsWith('provider-detect-') && f.endsWith('.json'));
+      expect(files).toHaveLength(15);
+    });
   });
 
   describe('file type preservation', () => {

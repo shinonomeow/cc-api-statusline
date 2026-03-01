@@ -6,7 +6,7 @@
 
 import { readdirSync, statSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
-import { GC_MAX_AGE_MS, GC_MAX_CACHE_FILES, GC_ORPHAN_TMP_AGE_MS } from '../core/constants.js';
+import { GC_MAX_AGE_MS, GC_MAX_CACHE_FILES, GC_MAX_PROVIDER_DETECT_FILES, GC_ORPHAN_TMP_AGE_MS } from '../core/constants.js';
 import { logger } from './logger.js';
 
 /**
@@ -17,6 +17,7 @@ import { logger } from './logger.js';
  * 2. provider-detect-*.json files older than 7 days
  * 3. *.tmp files older than 1 hour
  * 4. Oldest cache-*.json files if count exceeds 20
+ * 5. Oldest provider-detect-*.json files if count exceeds 20
  *
  * Preserves:
  * - config.json
@@ -102,6 +103,27 @@ export function runCacheGC(cacheDir: string): void {
           logger.debug('GC: Deleted orphaned tmp file', { file: file.name, ageMinutes: Math.floor(age / (60 * 1000)) });
         } catch (error) {
           logger.debug('GC: Failed to delete tmp file', { file: file.name, error: String(error) });
+        }
+      }
+    }
+
+    // Count-based cleanup: keep only most recent provider-detect files
+    const remainingProviderDetectFiles = providerDetectFiles.filter(file => {
+      const age = now - file.mtime;
+      return age <= GC_MAX_AGE_MS;
+    });
+
+    if (remainingProviderDetectFiles.length > GC_MAX_PROVIDER_DETECT_FILES) {
+      remainingProviderDetectFiles.sort((a, b) => a.mtime - b.mtime);
+
+      const toDelete = remainingProviderDetectFiles.slice(0, remainingProviderDetectFiles.length - GC_MAX_PROVIDER_DETECT_FILES);
+      for (const file of toDelete) {
+        try {
+          unlinkSync(join(cacheDir, file.name));
+          deletedCount++;
+          logger.debug('GC: Deleted provider-detect file (count limit)', { file: file.name });
+        } catch (error) {
+          logger.debug('GC: Failed to delete provider-detect file', { file: file.name, error: String(error) });
         }
       }
     }

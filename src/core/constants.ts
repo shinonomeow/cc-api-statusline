@@ -43,6 +43,11 @@ export const GC_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const GC_MAX_CACHE_FILES = 20;
 
 /**
+ * Maximum number of provider-detect files to keep
+ */
+export const GC_MAX_PROVIDER_DETECT_FILES = 20;
+
+/**
  * Maximum age for orphaned .tmp files before deletion (1 hour)
  */
 export const GC_ORPHAN_TMP_AGE_MS = 60 * 60 * 1000;
