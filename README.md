@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A high-performance TUI statusline tool that polls API usage data from Claude API proxy services (sub2api, claude-relay-service, or custom providers) and renders a configurable one-line status display.
+A high-performance TUI statusline tool that polls API usage data from Claude API services (sub2api, claude-relay-service, or custom providers) and renders a configurable one-line status display.
 
 ## Features
 
