@@ -7,9 +7,9 @@
 
 import { appendFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { homedir } from 'os';
 import { ensureDir } from './ensure-dir.js';
 import { maybeRotateLogs } from './log-rotator.js';
+import { getConfigDir } from './paths.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -26,7 +26,7 @@ class Logger {
 
     // Set log path
     const logDir = process.env['CC_API_STATUSLINE_LOG_DIR'] ||
-      join(homedir(), '.claude', 'cc-api-statusline');
+      getConfigDir();
     this.logPath = join(logDir, 'debug.log');
 
     if (this.enabled) {

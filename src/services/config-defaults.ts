@@ -14,7 +14,8 @@ import { atomicWriteFile } from './atomic-write.js';
 import { ensureDir } from './ensure-dir.js';
 import { getEndpointConfigDir, computeEndpointConfigHash, getBuiltInEndpointConfigs } from './endpoint-config.js';
 import { writeEndpointLock } from './endpoint-lock.js';
-import { getConfigDir } from './config.js';
+import { serializableConfig } from './config.js';
+import { getConfigDir } from './paths.js';
 
 /**
  * Get default style config (config.json content)
@@ -68,7 +69,7 @@ export function writeDefaultConfigs(customDir?: string): void {
 
   // Write config.json if it doesn't exist
   if (!existsSync(configPath)) {
-    const { colors: _colors, ...styleConfigWithoutColors } = getDefaultStyleConfig();
+    const styleConfigWithoutColors = serializableConfig(getDefaultStyleConfig());
     atomicWriteFile(configPath, JSON.stringify(styleConfigWithoutColors, null, 2), {
       appendNewline: true,
     });

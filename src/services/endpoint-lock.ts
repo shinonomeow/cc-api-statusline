@@ -5,10 +5,10 @@
  * when endpoint configurations change.
  */
 
-import { existsSync, readFileSync, unlinkSync } from 'fs';
+import { readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteFile } from './atomic-write.js';
-import { getConfigDir } from './config.js';
+import { getConfigDir } from './paths.js';
 
 /**
  * Lock file entry structure
@@ -37,13 +37,18 @@ export function getLockFilePath(customDir?: string): string {
  */
 export function readEndpointLock(customDir?: string): EndpointLockEntry | null {
   const lockPath = getLockFilePath(customDir);
+  let content: string;
 
-  if (!existsSync(lockPath)) {
-    return null;
+  try {
+    content = readFileSync(lockPath, 'utf-8');
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw err;
   }
 
   try {
-    const content = readFileSync(lockPath, 'utf-8');
     const data = JSON.parse(content) as unknown;
 
     if (

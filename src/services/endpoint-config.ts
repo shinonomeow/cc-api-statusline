@@ -9,7 +9,7 @@ import { join } from 'path';
 import type { EndpointConfig, EndpointConfigRegistry } from '../types/endpoint-config.js';
 import { shortHash } from './hash.js';
 import { logger } from './logger.js';
-import { getConfigDir } from './config.js';
+import { getConfigDir } from './paths.js';
 
 /**
  * Get endpoint config directory path

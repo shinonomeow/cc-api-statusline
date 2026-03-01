@@ -96,7 +96,7 @@ describe('fetchEndpoint', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     const httpModule = await import('../http.js');
-    mockFetch = vi.mocked(httpModule.secureFetch) as unknown as ReturnType<typeof vi.fn>;
+    mockFetch = httpModule.secureFetch as unknown as ReturnType<typeof vi.fn>;
     mockFetch.mockResolvedValue(minimalResponse);
   });
 

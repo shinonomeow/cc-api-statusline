@@ -90,29 +90,15 @@ export function renderStatusline(
     }
   }
 
-  // Build final component list in original order
-  const renderedComponents: string[] = [];
-  for (const componentId of componentOrder) {
-    if (activeComponents.has(componentId)) {
-      const rendered = componentMap.get(componentId);
-      if (rendered) renderedComponents.push(rendered);
-    }
-  }
-
-  // Join components with separator
-  let statusline = renderedComponents.join(separator);
-
-  // Append error indicator if present
-  if (errorState) {
-    if (isTransitionState(errorState)) {
-      statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
-    } else {
-      const hasCache = renderedComponents.length > 0;
-      const errorMode = hasCache ? 'with-cache' : 'without-cache';
-      const errorIndicator = renderError(errorState, errorMode, data.provider, undefined, cacheAge);
-      statusline = hasCache ? `${statusline} ${errorIndicator}` : errorIndicator;
-    }
-  }
+  let statusline = assembleStatuslineString(
+    componentOrder,
+    componentMap,
+    activeComponents,
+    separator,
+    errorState,
+    data,
+    cacheAge
+  );
 
   // Apply hard truncation as safety net
   const termWidth = getTerminalWidth();
@@ -143,6 +129,37 @@ function maxWidth(config: Config): number {
   return computeMaxWidth(termWidth, config.display.maxWidth ?? 100);
 }
 
+function assembleStatuslineString(
+  componentOrder: ComponentId[],
+  componentMap: Map<ComponentId, string>,
+  activeComponents: Set<ComponentId>,
+  separator: string,
+  errorState: ErrorState | undefined,
+  data: NormalizedUsage,
+  cacheAge: number | undefined
+): string {
+  const rendered: string[] = [];
+  for (const id of componentOrder) {
+    if (activeComponents.has(id)) {
+      const r = componentMap.get(id);
+      if (r) rendered.push(r);
+    }
+  }
+  let statusline = rendered.join(separator);
+
+  if (errorState) {
+    if (isTransitionState(errorState)) {
+      statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
+    } else {
+      const hasCache = rendered.length > 0;
+      const errorMode = hasCache ? 'with-cache' : 'without-cache';
+      const errorIndicator = renderError(errorState, errorMode, data.provider, undefined, cacheAge);
+      statusline = hasCache ? `${statusline} ${errorIndicator}` : errorIndicator;
+    }
+  }
+  return statusline;
+}
+
 /**
  * Calculate total visible width of statusline with given active components
  */
@@ -155,28 +172,9 @@ function calculateStatuslineWidth(
   data: NormalizedUsage,
   cacheAge: number | undefined
 ): number {
-  const components: string[] = [];
-  for (const id of componentOrder) {
-    if (activeComponents.has(id)) {
-      const rendered = componentMap.get(id);
-      if (rendered) components.push(rendered);
-    }
-  }
-
-  let statusline = components.join(separator);
-
-  if (errorState) {
-    if (isTransitionState(errorState)) {
-      statusline = renderError(errorState, 'with-cache', data.provider, undefined, cacheAge);
-    } else {
-      const hasCache = components.length > 0;
-      const errorMode = hasCache ? 'with-cache' : 'without-cache';
-      const errorIndicator = renderError(errorState, errorMode, data.provider, undefined, cacheAge);
-      statusline = hasCache ? `${statusline} ${errorIndicator}` : errorIndicator;
-    }
-  }
-
-  return visibleLength(statusline);
+  return visibleLength(
+    assembleStatuslineString(componentOrder, componentMap, activeComponents, separator, errorState, data, cacheAge)
+  );
 }
 
 /**

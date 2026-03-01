@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { resolveUserAgent, detectClaudeVersion } from '../user-agent';
 import { execSync } from 'child_process';
 
-vi.mock('child_process');
+vi.mock('child_process', () => ({ execSync: vi.fn() }));
+
+// Bun does not expose vi.mocked(); cast the mock directly
+const mockExecSync = execSync as unknown as ReturnType<typeof vi.fn>;
 
 describe('resolveUserAgent', () => {
   it('returns null for false', () => {
@@ -22,7 +25,7 @@ describe('resolveUserAgent', () => {
   });
 
   it('returns fallback UA when true and detection fails', () => {
-    vi.mocked(execSync).mockImplementation(() => {
+    mockExecSync.mockImplementation(() => {
       throw new Error('Command failed');
     });
     const result = resolveUserAgent(true);
@@ -33,7 +36,7 @@ describe('resolveUserAgent', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('claude-cli/2.2.0\n');
+    mockExecSync.mockReturnValue('claude-cli/2.2.0\n');
 
     const result = resolveUserAgent(true);
     expect(result).toBe('claude-cli/2.2.0 (external, cli)');
@@ -71,7 +74,7 @@ describe('detectClaudeVersion', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockImplementation(() => {
+    mockExecSync.mockImplementation(() => {
       throw new Error('Command not found');
     });
 
@@ -89,7 +92,7 @@ describe('detectClaudeVersion', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('claude-cli/2.1.56\n');
+    mockExecSync.mockReturnValue('claude-cli/2.1.56\n');
 
     const result = detectClaudeVersion();
     expect(result).toBe('2.1.56');
@@ -105,7 +108,7 @@ describe('detectClaudeVersion', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('2.1.56\n');
+    mockExecSync.mockReturnValue('2.1.56\n');
 
     const result = detectClaudeVersion();
     expect(result).toBe('2.1.56');
@@ -121,7 +124,7 @@ describe('detectClaudeVersion', () => {
     const originalEnv = process.env['CLAUDECODE'];
     process.env['CLAUDECODE'] = '1';
 
-    vi.mocked(execSync).mockReturnValue('invalid output\n');
+    mockExecSync.mockReturnValue('invalid output\n');
 
     const result = detectClaudeVersion();
     expect(result).toBe(null);

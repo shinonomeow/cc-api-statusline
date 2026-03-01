@@ -28,14 +28,12 @@ vi.mock('../../services/config-defaults.js', () => ({
 }));
 
 vi.mock('../../services/config.js', () => ({
-  loadConfig: vi.fn(() => ({})),
-  getConfigPath: vi.fn(() => '/tmp/config.json'),
+  loadConfigWithHash: vi.fn(() => ({ config: {}, configHash: 'config-hash' })),
 }));
 
 vi.mock('../../services/cache.js', () => ({
   readCache: vi.fn(() => null),
   writeCache: vi.fn(),
-  computeConfigHash: vi.fn(() => 'config-hash'),
   getCacheDir: vi.fn(() => '/tmp/cache'),
 }));
 

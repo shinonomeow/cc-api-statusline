@@ -5,7 +5,7 @@
  * Used across config, cache, logging, and settings modules.
  */
 
-import { mkdirSync, existsSync } from 'fs';
+import { mkdirSync } from 'fs';
 
 /**
  * Ensure directory exists with secure permissions
@@ -16,7 +16,5 @@ import { mkdirSync, existsSync } from 'fs';
  * @param dirPath - Absolute path to directory
  */
 export function ensureDir(dirPath: string): void {
-  if (!existsSync(dirPath)) {
-    mkdirSync(dirPath, { recursive: true, mode: 0o700 });
-  }
+  mkdirSync(dirPath, { recursive: true, mode: 0o700 });
 }

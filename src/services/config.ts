@@ -4,21 +4,15 @@
  * Load/save/merge JSON config, defaults, validation
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import type { Config } from '../types/index.js';
 import { DEFAULT_CONFIG } from '../types/index.js';
 import { ensureDir } from './ensure-dir.js';
 import { atomicWriteFile } from './atomic-write.js';
 import { logger } from './logger.js';
-
-/**
- * Get config directory path
- */
-export function getConfigDir(): string {
-  return join(homedir(), '.claude', 'cc-api-statusline');
-}
+import { getConfigDir } from './paths.js';
+import { shortHash } from './hash.js';
 
 /**
  * Get config file path
@@ -109,6 +103,22 @@ function validateConfig(config: Config): Config {
   };
 }
 
+function parseConfigContent(content: string, path: string): Config {
+  try {
+    const userConfig = JSON.parse(content) as Partial<Config>;
+
+    // Deep merge with defaults
+    const merged = deepMerge(DEFAULT_CONFIG, userConfig);
+
+    // Validate and clamp values
+    return validateConfig(merged);
+  } catch (err: unknown) {
+    logger.warn(`Could not load config from ${path}: ${err}`);
+    logger.warn('Using default configuration');
+    return DEFAULT_CONFIG;
+  }
+}
+
 /**
  * Load config from file, merge with defaults
  *
@@ -118,24 +128,47 @@ function validateConfig(config: Config): Config {
 export function loadConfig(configPath?: string): Config {
   const path = getConfigPath(configPath);
 
-  if (!existsSync(path)) {
-    return DEFAULT_CONFIG;
-  }
+  let content: string;
 
   try {
-    const content = readFileSync(path, 'utf-8');
-    const userConfig = JSON.parse(content) as Partial<Config>;
-
-    // Deep merge with defaults
-    const merged = deepMerge(DEFAULT_CONFIG, userConfig);
-
-    // Validate and clamp values
-    return validateConfig(merged);
-  } catch (error: unknown) {
-    logger.warn(`Could not load config from ${path}: ${error}`);
-    logger.warn('Using default configuration');
-    return DEFAULT_CONFIG;
+    content = readFileSync(path, 'utf-8');
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return DEFAULT_CONFIG;
+    }
+    throw err;
   }
+
+  return parseConfigContent(content, path);
+}
+
+/**
+ * Load config and compute its hash in a single file read.
+ * Used by piped mode to avoid reading the config file twice.
+ */
+export function loadConfigWithHash(configPath?: string): { config: Config; configHash: string } {
+  const path = getConfigPath(configPath);
+  let content: string;
+
+  try {
+    content = readFileSync(path, 'utf-8');
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { config: DEFAULT_CONFIG, configHash: shortHash('', 12) };
+    }
+    throw err;
+  }
+
+  return {
+    config: parseConfigContent(content, path),
+    configHash: shortHash(content, 12),
+  };
+}
+
+/** Strip runtime-only `colors` field before serialization. */
+export function serializableConfig(config: Config): Omit<Config, 'colors'> {
+  const { colors: _colors, ...rest } = config as Config & { colors?: unknown };
+  return rest;
 }
 
 /**
@@ -153,7 +186,7 @@ export function saveConfig(config: Config, configPath?: string): void {
   // Exclude colors from serialization — colors are derived at runtime from the
   // theme and must not be persisted, otherwise a stale override re-introduced
   // here would shadow future theme changes.
-  const { colors: _colors, ...configWithoutColors } = config as Config & { colors?: unknown };
+  const configWithoutColors = serializableConfig(config);
 
   // Write atomically
   const content = JSON.stringify(configWithoutColors, null, 2);
@@ -176,13 +209,12 @@ export function saveConfig(config: Config, configPath?: string): void {
 export function readRawConfigBytes(configPath?: string): Buffer | null {
   const path = getConfigPath(configPath);
 
-  if (!existsSync(path)) {
-    return null;
-  }
-
   try {
     return readFileSync(path);
-  } catch {
-    return null;
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw err;
   }
 }

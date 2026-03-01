@@ -30,6 +30,15 @@ import { getProgressIcon } from './icons.js';
 import { formatCompactNumber, formatCurrencyQuota } from './format.js';
 import type { RenderContext } from './context.js';
 
+interface EffectiveDisplayOptions {
+  layout: Layout;
+  displayMode: DisplayMode;
+  progressStyle: ProgressStyle;
+  barSize: BarSize;
+  barStyle: BarStyle;
+  clockFormat: ClockFormat;
+}
+
 /**
  * Component ID type
  */
@@ -53,71 +62,38 @@ export function renderComponent(
   renderContext?: RenderContext
 ): string | null {
   // Get effective configuration (component overrides take precedence)
-  const effectiveLayout = componentConfig.layout ?? globalConfig.display.layout;
-  const effectiveDisplayMode = resolveEffectiveDisplayMode(
-    componentConfig.displayMode ?? globalConfig.display.displayMode,
-    renderContext
-  );
-  const effectiveProgressStyle = resolveEffectiveProgressStyle(
-    componentConfig.progressStyle ?? globalConfig.display.progressStyle,
-    renderContext
-  );
-  const effectiveBarSize = componentConfig.barSize ?? globalConfig.display.barSize;
-  const effectiveBarStyle = componentConfig.barStyle ?? globalConfig.display.barStyle;
-  const clockFormat = globalConfig.display.clockFormat;
+  const options: EffectiveDisplayOptions = {
+    layout: componentConfig.layout ?? globalConfig.display.layout,
+    displayMode: resolveEffectiveDisplayMode(
+      componentConfig.displayMode ?? globalConfig.display.displayMode,
+      renderContext
+    ),
+    progressStyle: resolveEffectiveProgressStyle(
+      componentConfig.progressStyle ?? globalConfig.display.progressStyle,
+      renderContext
+    ),
+    barSize: componentConfig.barSize ?? globalConfig.display.barSize,
+    barStyle: componentConfig.barStyle ?? globalConfig.display.barStyle,
+    clockFormat: globalConfig.display.clockFormat,
+  };
 
   // Route to component-specific renderer
   switch (componentId) {
     case 'daily':
-      return renderQuotaComponent(
-        'daily',
-        data.daily,
-        effectiveLayout,
-        effectiveDisplayMode,
-        effectiveProgressStyle,
-        effectiveBarSize,
-        effectiveBarStyle,
-        componentConfig,
-        globalConfig,
-        clockFormat,
-        renderContext
-      );
     case 'weekly':
-      return renderQuotaComponent(
-        'weekly',
-        data.weekly,
-        effectiveLayout,
-        effectiveDisplayMode,
-        effectiveProgressStyle,
-        effectiveBarSize,
-        effectiveBarStyle,
-        componentConfig,
-        globalConfig,
-        clockFormat,
-        renderContext
-      );
     case 'monthly':
       return renderQuotaComponent(
-        'monthly',
-        data.monthly,
-        effectiveLayout,
-        effectiveDisplayMode,
-        effectiveProgressStyle,
-        effectiveBarSize,
-        effectiveBarStyle,
+        componentId as 'daily' | 'weekly' | 'monthly',
+        data[componentId as 'daily' | 'weekly' | 'monthly'],
+        options,
         componentConfig,
         globalConfig,
-        clockFormat,
         renderContext
       );
     case 'balance':
       return renderBalanceComponent(
         data.balance,
-        effectiveLayout,
-        effectiveDisplayMode,
-        effectiveProgressStyle,
-        effectiveBarSize,
-        effectiveBarStyle,
+        options,
         componentConfig,
         globalConfig,
         renderContext
@@ -125,8 +101,7 @@ export function renderComponent(
     case 'tokens':
       return renderTokensComponent(
         data.tokenStats,
-        effectiveLayout,
-        effectiveDisplayMode,
+        options,
         componentConfig,
         globalConfig,
         renderContext
@@ -134,17 +109,13 @@ export function renderComponent(
     case 'rateLimit':
       return renderRateLimitComponent(
         data.rateLimit,
-        effectiveLayout,
-        effectiveDisplayMode,
-        effectiveProgressStyle,
-        effectiveBarSize,
-        effectiveBarStyle,
+        options,
         componentConfig,
         globalConfig,
         renderContext
       );
     case 'plan':
-      return renderPlanComponent(data.planName, effectiveLayout, effectiveDisplayMode, componentConfig, globalConfig, renderContext);
+      return renderPlanComponent(data.planName, options, componentConfig, globalConfig, renderContext);
     default:
       return null;
   }
@@ -156,16 +127,13 @@ export function renderComponent(
 function renderQuotaComponent(
   componentId: 'daily' | 'weekly' | 'monthly',
   quota: QuotaWindow | null,
-  layout: Layout,
-  displayMode: DisplayMode,
-  progressStyle: ProgressStyle,
-  barSize: BarSize,
-  barStyle: BarStyle,
+  options: EffectiveDisplayOptions,
   componentConfig: ComponentConfig,
   globalConfig: Config,
-  clockFormat: ClockFormat,
   renderContext?: RenderContext
 ): string | null {
+  const { layout, displayMode, progressStyle, barSize, barStyle, clockFormat } = options;
+
   // No quota data → skip component
   if (!quota) return null;
 
@@ -210,15 +178,14 @@ function renderQuotaComponent(
  */
 function renderBalanceComponent(
   balance: BalanceInfo | null,
-  layout: Layout,
-  displayMode: DisplayMode,
-  progressStyle: ProgressStyle,
-  barSize: BarSize,
-  barStyle: BarStyle,
+  options: EffectiveDisplayOptions,
   componentConfig: ComponentConfig,
   globalConfig: Config,
   renderContext?: RenderContext
 ): string | null {
+  const { layout, displayMode, progressStyle, barSize, barStyle, clockFormat } = options;
+  void clockFormat;
+
   // No balance data → skip component
   if (!balance) return null;
 
@@ -263,12 +230,17 @@ function renderBalanceComponent(
  */
 function renderTokensComponent(
   tokenStats: NormalizedUsage['tokenStats'],
-  layout: Layout,
-  displayMode: DisplayMode,
+  options: EffectiveDisplayOptions,
   componentConfig: ComponentConfig,
   globalConfig: Config,
   renderContext?: RenderContext
 ): string | null {
+  const { layout, displayMode, progressStyle, barSize, barStyle, clockFormat } = options;
+  void progressStyle;
+  void barSize;
+  void barStyle;
+  void clockFormat;
+
   // No token stats → skip component
   if (!tokenStats) return null;
 
@@ -301,15 +273,14 @@ function renderTokensComponent(
  */
 function renderRateLimitComponent(
   rateLimit: NormalizedUsage['rateLimit'],
-  layout: Layout,
-  displayMode: DisplayMode,
-  progressStyle: ProgressStyle,
-  barSize: BarSize,
-  barStyle: BarStyle,
+  options: EffectiveDisplayOptions,
   componentConfig: ComponentConfig,
   globalConfig: Config,
   renderContext?: RenderContext
 ): string | null {
+  const { layout, displayMode, progressStyle, barSize, barStyle, clockFormat } = options;
+  void clockFormat;
+
   // No rate limit data → skip component
   if (!rateLimit) return null;
 
@@ -352,12 +323,18 @@ function renderRateLimitComponent(
  */
 function renderPlanComponent(
   planName: string,
-  layout: Layout,
-  displayMode: DisplayMode,
+  options: EffectiveDisplayOptions,
   componentConfig: ComponentConfig,
   globalConfig: Config,
   renderContext?: RenderContext
 ): string | null {
+  const { layout, displayMode, progressStyle, barSize, barStyle, clockFormat } = options;
+  void layout;
+  void progressStyle;
+  void barSize;
+  void barStyle;
+  void clockFormat;
+
   // Plan component hidden when displayMode is 'hidden'
   if (displayMode === 'hidden') return null;
 
@@ -641,4 +618,3 @@ function resolvePartColor(
   const color = componentConfig.color ?? 'auto';
   return resolveColor(color, usagePercent, globalConfig);
 }
-

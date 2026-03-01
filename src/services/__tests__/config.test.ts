@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   loadConfig,
+  loadConfigWithHash,
   saveConfig,
   getConfigPath,
-  getConfigDir,
   ensureConfigDir,
   readRawConfigBytes,
 } from '../config.js';
+import { getConfigDir } from '../paths.js';
 import { DEFAULT_CONFIG, DEFAULT_TIER_THRESHOLDS, buildTiers } from '../../types/index.js';
 import { writeDefaultConfigs } from '../config-defaults.js';
+import { shortHash } from '../hash.js';
 import { existsSync, mkdirSync, writeFileSync, unlinkSync, rmdirSync, readdirSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -176,6 +178,40 @@ describe('config service', () => {
       // Defaults should be preserved
       expect(config.colors?.['auto']).toEqual(DEFAULT_CONFIG.colors?.['auto']);
       expect(config.display.divider).toEqual(DEFAULT_CONFIG.display.divider);
+    });
+  });
+
+  describe('loadConfigWithHash', () => {
+    it('should return DEFAULT_CONFIG and empty-content hash when file does not exist', () => {
+      const nonExistentPath = join(testDir, 'nonexistent.json');
+      const result = loadConfigWithHash(nonExistentPath);
+
+      expect(result.config).toEqual(DEFAULT_CONFIG);
+      expect(result.configHash).toBe(shortHash('', 12));
+    });
+
+    it('should load config and hash raw content', () => {
+      const configPath = join(testDir, 'config.json');
+      const content = JSON.stringify({ display: { maxWidth: 80 } });
+
+      writeFileSync(configPath, content, 'utf-8');
+
+      const result = loadConfigWithHash(configPath);
+
+      expect(result.config.display.maxWidth).toBe(80);
+      expect(result.configHash).toBe(shortHash(content, 12));
+    });
+
+    it('should return DEFAULT_CONFIG but still hash invalid raw content', () => {
+      const configPath = join(testDir, 'config.json');
+      const content = 'invalid json {{{';
+
+      writeFileSync(configPath, content, 'utf-8');
+
+      const result = loadConfigWithHash(configPath);
+
+      expect(result.config).toEqual(DEFAULT_CONFIG);
+      expect(result.configHash).toBe(shortHash(content, 12));
     });
   });
 

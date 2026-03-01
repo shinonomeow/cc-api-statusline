@@ -4,15 +4,15 @@
  * Atomic writes, TTL validation, per-terminal isolation
  */
 
-import { readFileSync, existsSync, unlinkSync } from 'fs';
+import { readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import type { CacheEntry, EnvSnapshot, Config, ProviderDetectionCacheEntry } from '../types/index.js';
 import { CACHE_VERSION, isCacheEntry, isProviderDetectionCacheEntry } from '../types/index.js';
 import { shortHash } from './hash.js';
 import { ensureDir } from './ensure-dir.js';
 import { atomicWriteFile } from './atomic-write.js';
 import { logger } from './logger.js';
+import { getConfigDir } from './paths.js';
 
 /**
  * Get cache directory path
@@ -22,7 +22,7 @@ export function getCacheDir(): string {
   if (override) {
     return override;
   }
-  return join(homedir(), '.claude', 'cc-api-statusline');
+  return getConfigDir();
 }
 
 /**
@@ -53,12 +53,18 @@ export function getCachePath(baseUrl: string): string {
 export function readCache(baseUrl: string): CacheEntry | null {
   const path = getCachePath(baseUrl);
 
-  if (!existsSync(path)) {
-    return null;
+  let content: string;
+
+  try {
+    content = readFileSync(path, 'utf-8');
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw err;
   }
 
   try {
-    const content = readFileSync(path, 'utf-8');
     const data = JSON.parse(content) as unknown;
 
     // Validate structure
@@ -68,8 +74,8 @@ export function readCache(baseUrl: string): CacheEntry | null {
     }
 
     return data;
-  } catch (error: unknown) {
-    logger.warn(`Failed to read cache from ${path}: ${error}`);
+  } catch (err: unknown) {
+    logger.warn(`Failed to parse cache from ${path}: ${err}`);
     return null;
   }
 }
@@ -189,16 +195,11 @@ export function isCacheRenderedLineUsable(
  * @returns SHA-256 hash (first 12 chars) or sentinel for missing file
  */
 export function computeConfigHash(configPath: string): string {
-  if (!existsSync(configPath)) {
-    // Sentinel hash for missing config file
-    return shortHash('', 12);
-  }
-
   try {
     const bytes = readFileSync(configPath);
     return shortHash(bytes.toString('utf-8'), 12);
-  } catch (error: unknown) {
-    logger.warn(`Failed to read config for hash: ${error}`);
+  } catch (err: unknown) {
+    logger.warn(`Failed to read config for hash: ${err}`);
     return shortHash('', 12);
   }
 }
@@ -275,12 +276,18 @@ export function getProviderDetectionCachePath(baseUrl: string): string {
 export function readProviderDetectionCache(baseUrl: string): ProviderDetectionCacheEntry | null {
   const path = getProviderDetectionCachePath(baseUrl);
 
-  if (!existsSync(path)) {
-    return null;
+  let content: string;
+
+  try {
+    content = readFileSync(path, 'utf-8');
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw err;
   }
 
   try {
-    const content = readFileSync(path, 'utf-8');
     const data = JSON.parse(content) as unknown;
 
     // Validate structure
@@ -306,8 +313,8 @@ export function readProviderDetectionCache(baseUrl: string): ProviderDetectionCa
     }
 
     return data;
-  } catch (error: unknown) {
-    logger.warn(`Failed to read provider detection cache from ${path}: ${error}`);
+  } catch (err: unknown) {
+    logger.warn(`Failed to parse provider detection cache from ${path}: ${err}`);
     return null;
   }
 }

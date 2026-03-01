@@ -2,7 +2,7 @@
  * Environment variable reading with settings.json overlay
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { shortHash } from './hash.js';
@@ -35,13 +35,18 @@ export function getSettingsJsonPath(): string {
  */
 function readSettingsJsonEnv(): Record<string, string> {
   const settingsPath = getSettingsJsonPath();
+  let content: string;
 
-  if (!existsSync(settingsPath)) {
-    return {};
+  try {
+    content = readFileSync(settingsPath, 'utf-8');
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return {};
+    }
+    throw err;
   }
 
   try {
-    const content = readFileSync(settingsPath, 'utf-8');
     const settings = JSON.parse(content) as Record<string, unknown>;
 
     // Extract env field
@@ -66,9 +71,9 @@ function readSettingsJsonEnv(): Record<string, string> {
     }
 
     return {};
-  } catch (error: unknown) {
+  } catch (err: unknown) {
     // Ignore errors reading settings.json - not critical
-    logger.warn(`Could not read settings.json: ${error}`);
+    logger.warn(`Could not read settings.json: ${err}`);
     return {};
   }
 }

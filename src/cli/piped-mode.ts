@@ -13,8 +13,8 @@ import type { EndpointConfigRegistry } from '../types/index.js';
 import type { EndpointLockEntry } from '../services/endpoint-lock.js';
 import type { ErrorState } from '../renderer/error.js';
 import { readCurrentEnv, validateRequiredEnv } from '../services/env.js';
-import { readCache, writeCache, computeConfigHash, getCacheDir, isCacheValid } from '../services/cache.js';
-import { loadConfig, getConfigPath } from '../services/config.js';
+import { readCache, writeCache, getCacheDir, isCacheValid } from '../services/cache.js';
+import { loadConfigWithHash } from '../services/config.js';
 import { loadEndpointConfigs, computeEndpointConfigHash } from '../services/endpoint-config.js';
 import { readEndpointLock, writeEndpointLock } from '../services/endpoint-lock.js';
 import { needsConfigInit, writeDefaultConfigs } from '../services/config-defaults.js';
@@ -66,14 +66,6 @@ function ensureDefaultConfigs(): void {
     logger.debug('First run detected - initializing default configs');
     writeDefaultConfigs();
   }
-}
-
-function loadConfigWithHash(configPath?: string): { config: Config; configHash: string } {
-  const config = loadConfig(configPath);
-  const resolvedPath = getConfigPath(configPath);
-  const configHash = computeConfigHash(resolvedPath);
-  logger.debug('Config loaded', { configPath: resolvedPath, configHash });
-  return { config, configHash };
 }
 
 function loadEndpointConfigsWithHash(): { endpointConfigs: EndpointConfigRegistry; endpointConfigHash: string } {
