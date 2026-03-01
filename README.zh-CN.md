@@ -2,7 +2,7 @@
 
 [English](README.md) | 简体中文
 
-在ClaudeCode状态栏显示API用量，通过轮询 Claude API 代理服务（sub2api、claude-relay-service 或自定义提供商）获取用量数据，并以可配置显示样式。
+在ClaudeCode状态栏显示API用量，通过轮询 Claude API 服务（sub2api、claude-relay-service 或自定义提供商）获取用量数据，并以可配置显示样式。
 
 ## 特性
 
