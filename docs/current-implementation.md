@@ -1,6 +1,6 @@
 # Current Implementation (Snapshot)
 
-> Last updated: 2026-02-28
+> Last updated: 2026-03-01
 > This file reflects the actual code in `src/`.
 > For complete rules and implementation guidance, use `docs/implementation-handbook.md`.
 
@@ -20,7 +20,7 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 
 ## Main flow
 
-`src/main.ts` is a **thin router** (~78 lines). All logic is delegated to `src/cli/`:
+`src/main.ts` is a **thin router** (~98 lines). All logic is delegated to `src/cli/`:
 
 1. discard stdin payload (for host compatibility)
 2. `parseArgs()` — `src/cli/args.ts`
@@ -108,7 +108,7 @@ node dist/cc-api-statusline.js --uninstall
 ## Testing status
 
 - Full gate command: `bun run check`
-- Current suite: **682 tests** / **39 files**
+- Current suite: **691 tests** / **39 files**
 - Includes: unit tests, renderer tests, core path tests, settings tests, E2E smoke tests, perf tests
 - CI/CD: GitHub Actions workflows for PR checks and npm publish on tags
 
@@ -119,5 +119,5 @@ node dist/cc-api-statusline.js --uninstall
 - `src/core/` — execute-cycle, constants
 - `src/providers/` — sub2api, relay, custom, autodetect, quota-window, custom-mapping
 - `src/services/` — env, cache, config, settings, logger, log-rotator, atomic-write, ensure-dir
-- `src/renderer/` — component (RenderContext), bar, colors, countdown, error, transition, icons, truncate
-- `src/types/` — config (DEFAULT_COMPONENT_ORDER typed as ComponentId[]), cache (CacheErrorState), normalized-usage
+- `src/renderer/` — index (pipeline), component, context (RenderContext), bar, colors, divider, countdown, error, transition, format, icons, truncate
+- `src/types/` — config (DEFAULT_COMPONENT_ORDER typed as ComponentId[], DEFAULT_TIER_THRESHOLDS [37.5, 62.5, 75, 87.5, 100], buildTiers() helper), cache (CacheErrorState), normalized-usage

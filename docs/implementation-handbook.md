@@ -115,11 +115,12 @@ Implementation: `src/services/user-agent.ts`
 ### 3.2 Defaults (from `DEFAULT_CONFIG`)
 
 - `display.layout`: `standard`
-- `display.displayMode`: `bar`
+- `display.displayMode`: `text`
+- `display.progressStyle`: `icon`
 - `display.barSize`: `medium`
-- `display.barStyle`: `classic`
+- `display.barStyle`: `block`
 - `display.divider`: `{ text: '|', margin: 1, color: '#555753' }`
-- `display.maxWidth`: `80` (percentage of terminal width)
+- `display.maxWidth`: `100` (percentage of terminal width)
 - `display.clockFormat`: `24h`
 - `pollIntervalSeconds`: `30`
 - `pipedRequestTimeoutMs`: `800`
@@ -373,15 +374,21 @@ Component order:
 Layouts:
 
 - `standard`
-- `compact`
-- `minimal`
 - `percent-first`
 
-Display modes:
+Display modes (`displayMode` — label style):
+
+- `text`
+- `compact`
+- `emoji`
+- `nerd`
+- `hidden`
+
+Progress styles (`progressStyle` — usage fraction visualization):
 
 - `bar`
-- `percentage`
-- `icon-pct`
+- `icon`
+- `hidden`
 
 ## 9.3 Colors and aliases
 
