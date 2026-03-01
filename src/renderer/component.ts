@@ -83,8 +83,8 @@ export function renderComponent(
     case 'weekly':
     case 'monthly':
       return renderQuotaComponent(
-        componentId as 'daily' | 'weekly' | 'monthly',
-        data[componentId as 'daily' | 'weekly' | 'monthly'],
+        componentId,
+        data[componentId],
         options,
         componentConfig,
         globalConfig,
@@ -574,7 +574,8 @@ function assembleComponent(
 
   // Countdown is always last — append directly to avoid an extra join-space before the divider
   if (countdown && parts.length > 0) {
-    parts[parts.length - 1] += countdown;
+    const idx = parts.length - 1;
+    parts[idx] = (parts[idx] ?? '') + countdown;
   } else if (countdown) {
     parts.push(countdown);
   }

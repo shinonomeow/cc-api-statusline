@@ -212,7 +212,7 @@ export function buildTiers(
       `buildTiers: colors.length (${colors.length}) must equal thresholds.length (${thresholds.length})`
     );
   }
-  return colors.map((color, i) => ({ color, maxPercent: thresholds[i]! }));
+  return colors.map((color, i) => ({ color, maxPercent: thresholds[i] as number }));
 }
 
 /**

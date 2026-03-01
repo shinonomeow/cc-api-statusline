@@ -345,7 +345,7 @@ describe('config service', () => {
       expect(DEFAULT_TIER_THRESHOLDS[DEFAULT_TIER_THRESHOLDS.length - 1]).toBe(100);
 
       for (let i = 1; i < DEFAULT_TIER_THRESHOLDS.length; i++) {
-        expect(DEFAULT_TIER_THRESHOLDS[i]!).toBeGreaterThan(DEFAULT_TIER_THRESHOLDS[i - 1]!);
+        expect(DEFAULT_TIER_THRESHOLDS[i] as number).toBeGreaterThan(DEFAULT_TIER_THRESHOLDS[i - 1] as number);
       }
     });
 
