@@ -290,8 +290,8 @@ describe('config service', () => {
     });
 
     it('throws when colors and thresholds lengths differ, with both lengths in message', () => {
-      expect(() => buildTiers(['a', 'b'], [1, 2, 3])).toThrow(/2/);
-      expect(() => buildTiers(['a', 'b'], [1, 2, 3])).toThrow(/3/);
+      expect(() => buildTiers(['a', 'b'], [1, 2, 3]))
+        .toThrow(/colors\.length \(2\).*thresholds\.length \(3\)/);
     });
 
     it('returns new array instances on each call (immutability)', () => {
@@ -319,6 +319,7 @@ describe('config service', () => {
       for (const name of themeNames) {
         const entry = DEFAULT_CONFIG.colors?.[name];
         expect(entry).toBeDefined();
+        expect(entry).toHaveProperty('tiers');
         // Each entry is a ColorTieredEntry with a tiers array
         const tieredEntry = entry as { tiers: ReadonlyArray<{ color: string; maxPercent: number }> };
         expect(tieredEntry.tiers).toHaveLength(DEFAULT_TIER_THRESHOLDS.length);
@@ -350,6 +351,19 @@ describe('config service', () => {
       const parsed = JSON.parse(raw) as Record<string, unknown>;
 
       expect(Object.prototype.hasOwnProperty.call(parsed, 'colors')).toBe(false);
+    });
+
+    it('does not overwrite config.json if it already exists', () => {
+      writeDefaultConfigs(colorsTestDir);
+      const firstContent = readFileSync(join(colorsTestDir, 'config.json'), 'utf-8');
+      // Simulate user change
+      const modified = firstContent.replace('"display"', '"display_MODIFIED"');
+      // Write modified content directly
+      writeFileSync(join(colorsTestDir, 'config.json'), modified);
+      // Call again - should not overwrite
+      writeDefaultConfigs(colorsTestDir);
+      const secondContent = readFileSync(join(colorsTestDir, 'config.json'), 'utf-8');
+      expect(secondContent).toBe(modified); // original modification preserved
     });
   });
 });
