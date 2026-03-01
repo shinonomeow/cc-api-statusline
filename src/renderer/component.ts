@@ -195,7 +195,7 @@ function renderBalanceComponent(
   // Calculate usage percentage for color resolution
   let usagePercent: number | null = null;
   if (!isUnlimited && balance.initial !== null && balance.initial > 0) {
-    usagePercent = ((balance.initial - balance.remaining) / balance.initial) * 100;
+    usagePercent = calculateUsagePercent(balance.initial - balance.remaining, balance.initial);
   }
 
   // For unlimited balance, use "low" color theme

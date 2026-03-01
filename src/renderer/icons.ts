@@ -35,17 +35,21 @@ const TEXT_PROGRESS_ICONS = [
 ];
 
 /**
- * Calculate icon index into a 9-slot array (nerd font icons)
+ * Map a clamped percentage to a bucket index.
+ * Rounds percent to integer first so the icon matches the displayed rounded text.
  */
-function calcNerdIconIndex(percent: number): number {
-  return Math.min(8, Math.ceil(percent / 12.5));
+function calcIconIndex(percent: number, bucketSize: number, maxIndex: number): number {
+  return Math.min(maxIndex, Math.ceil(Math.round(percent) / bucketSize));
 }
 
-/**
- * Calculate icon index into a 5-slot array (text fallback icons)
- */
+/** 9-slot nerd-font icon index (12.5% buckets) */
+function calcNerdIconIndex(percent: number): number {
+  return calcIconIndex(percent, 12.5, 8);
+}
+
+/** 5-slot text fallback icon index (25% buckets) */
 function calcTextIconIndex(percent: number): number {
-  return Math.min(4, Math.ceil(percent / 25));
+  return calcIconIndex(percent, 25, 4);
 }
 
 /**
