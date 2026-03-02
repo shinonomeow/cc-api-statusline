@@ -45,7 +45,7 @@ export ANTHROPIC_AUTH_TOKEN="your-api-token"
 bunx cc-api-statusline@latest --once
 ```
 
-### 3. Install as Claude Code widget (optional)
+### 3.a Install as Claude Code widget
 
 ```bash
 bunx cc-api-statusline@latest --install
@@ -56,10 +56,31 @@ This adds to `~/.claude/settings.json`:
 ```json
 {
   "statusLine": {
+    "id": "e62435aa-bdf5-4ded-a2e3-ae13582439db",
     "type": "command",
     "command": "bunx -y cc-api-statusline@latest",
     "padding": 0
   }
+}
+```
+
+### 3.b Install as [ccstatusline](https://github.com/anthropics/claude-code) Custom Command
+
+Add to `~/.claude/ccstatusline/config.json`:
+
+```json
+{
+  "lines": [
+    [
+      {
+        "id": "e62435aa-bdf5-4ded-a2e3-ae13582439db",
+        "type": "custom-command",
+        "commandPath": "bunx -y cc-api-statusline@latest",
+        "preserveColors": true,
+        "timeout": 10000
+      }
+    ]
+  ]
 }
 ```
 
@@ -143,31 +164,6 @@ cc-api-statusline --apply-config
 ```
 
 See [docs/api-config-reference.md](docs/api-config-reference.md) for the full schema.
-
-## [ccstatusline](https://github.com/anthropics/claude-code) Custom Command
-
-Add to `~/.claude/ccstatusline/config.json`:
-
-```json
-{
-  "customCommands": {
-    "usage": {
-      "command": "cc-api-statusline",
-      "description": "API usage statusline",
-      "type": "piped"
-    }
-  },
-  "widgets": [
-    {
-      "type": "customCommand",
-      "command": "usage",
-      "refreshIntervalMs": 30000,
-      "maxWidth": 100,
-      "preserveColors": true
-    }
-  ]
-}
-```
 
 ## Environment Variables
 

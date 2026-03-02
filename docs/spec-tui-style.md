@@ -259,8 +259,8 @@ Each accepts a color name, hex value, or alias:
 
 | Style | Fill | Empty | Example |
 |---|---|---|---|
-| `classic` | `━` | `─` | `━━━━────` (default) |
-| `block` | `█` | `░` | `████░░░░` |
+| `block` | `█` | `░` | `████░░░░` (default) |
+| `classic` | `━` | `─` | `━━━━────` |
 | `shade` | `▓` | `░` | `▓▓▓▓░░░░` |
 | `pipe` | `┃` | `┊` | `┃┃┃┃┊┊┊┊` |
 | `dot` | `●` | `○` | `●●●●○○○○` |
@@ -333,9 +333,39 @@ If `resetsAt` is null → countdown hidden automatically.
 
 Bar and percentage colors change based on usage. The `color` key on a component controls this.
 
-### Built-in: `"auto"` (default)
+### Built-in color aliases
 
-The `auto` alias uses a 5-tier gradient keyed to theme color names:
+Seven aliases are predefined. All share default thresholds `[37.5, 62.5, 75, 87.5, 100]`.
+
+| Alias | Description | Tier colors (low → high) |
+|-------|-------------|--------------------------|
+| `auto` | Default 5-tier gradient | `cool` → `comfortable` → `warm` → `hot` → `critical` |
+| `vibrant` | Bold neon gradient | `#00D9FF` → `#4ADE80` → `#FDE047` → `#FB923C` → `#F87171` |
+| `pastel` | Soft, gentle tones | `pastel-cool` → `pastel-comfortable` → `pastel-medium` → `pastel-warm` → `pastel-hot` |
+| `bright` | Vibrant pastels | `bright-cool` → `bright-comfortable` → `bright-medium` → `bright-warm` → `bright-hot` |
+| `ocean` | Deep blue to coral | `ocean-cool` → `ocean-comfortable` → `ocean-medium` → `ocean-warm` → `ocean-hot` |
+| `neutral` | Muted neutrals | `neutral-cool` → `neutral-comfortable` → `neutral-warm` → `neutral-hot` → `neutral-critical` |
+| `chill` | Cool blues to magenta | `cyan` → `cyan` → `blue` → `blue` → `magenta` |
+
+Theme color name → hex reference:
+
+| Name | Hex | | Name | Hex |
+|------|-----|-|------|-----|
+| `cool` | `#56B6C2` | | `pastel-cool` | `#BAD7F2` |
+| `comfortable` | `#5EBE8A` | | `pastel-comfortable` | `#BAF2D8` |
+| `warm` | `#C9A84C` | | `pastel-medium` | `#BAF2BB` |
+| `hot` | `#D68B45` | | `pastel-warm` | `#F2E2BA` |
+| `critical` | `#D45A5A` | | `pastel-hot` | `#F2BAC9` |
+| `bright-cool` | `#90F1EF` | | `ocean-cool` | `#0081A7` |
+| `bright-comfortable` | `#7BF1A8` | | `ocean-comfortable` | `#00AFB9` |
+| `bright-medium` | `#C1FBA4` | | `ocean-medium` | `#FDFCDC` |
+| `bright-warm` | `#FFEF9F` | | `ocean-warm` | `#FED9B7` |
+| `bright-hot` | `#FFD6E0` | | `ocean-hot` | `#F07167` |
+| `neutral-cool` | `#D8E2DC` | | `neutral-warm` | `#FFCAD4` |
+| `neutral-comfortable` | `#FFE5D9` | | `neutral-hot` | `#F4ACB7` |
+| `neutral-critical` | `#9D8189` | | | |
+
+The `auto` alias definition (shown for reference — it is predefined and overrideable):
 
 ```json
 {
@@ -357,7 +387,7 @@ Each tier applies when usage is below its `maxPercent`. Usage above the last tie
 
 ### Custom color aliases
 
-Define named aliases in the `colors` config key using the `tiers` format:
+Define named aliases in the `colors` config key using the `tiers` format. `chill` is a predefined alias shown for illustration; `binary` is a user-defined example:
 
 ```json
 {

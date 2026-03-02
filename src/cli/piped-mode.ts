@@ -203,7 +203,7 @@ function formatOutput(output: string, isPiped: boolean): string {
     return '\x1b[0m' + normalizedOutput.replace(/ /g, '\u00A0');
   } else {
     logger.debug('Output written (TTY mode)');
-    return normalizedOutput;
+    return normalizedOutput + '\n';
   }
 }
 

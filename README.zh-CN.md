@@ -44,7 +44,7 @@ export ANTHROPIC_AUTH_TOKEN="your-api-token"
 bunx cc-api-statusline@latest --once
 ```
 
-### 3. 安装为 Claude Code 状态栏组件（可选）
+### 3.a 安装为 Claude Code 状态栏组件
 
 ```bash
 bunx cc-api-statusline@latest --install
@@ -59,6 +59,25 @@ bunx cc-api-statusline@latest --install
     "command": "bunx -y cc-api-statusline@latest",
     "padding": 0
   }
+}
+```
+### 3.b 安装为 [ccstatusline](https://github.com/anthropics/claude-code) 自定义命令
+
+在 `~/.claude/ccstatusline/config.json` 中添加如下配置：
+
+```json
+{
+  "lines": [
+    [
+      {
+        "id": "e62435aa-bdf5-4ded-a2e3-ae13582439db",
+        "type": "custom-command",
+        "commandPath": "bunx -y cc-api-statusline@latest",
+        "preserveColors": true,
+        "timeout": 10000
+      }
+    ]
+  ]
 }
 ```
 
@@ -142,31 +161,6 @@ cc-api-statusline --apply-config
 ```
 
 完整 Schema 请参阅 [docs/api-config-reference.md](docs/api-config-reference.md)。
-
-## [ccstatusline](https://github.com/anthropics/claude-code) 自定义命令
-
-在 `~/.claude/ccstatusline/config.json` 中添加如下配置：
-
-```json
-{
-  "customCommands": {
-    "usage": {
-      "command": "cc-api-statusline",
-      "description": "API usage statusline",
-      "type": "piped"
-    }
-  },
-  "widgets": [
-    {
-      "type": "customCommand",
-      "command": "usage",
-      "refreshIntervalMs": 30000,
-      "maxWidth": 100,
-      "preserveColors": true
-    }
-  ]
-}
-```
 
 ## 环境变量
 

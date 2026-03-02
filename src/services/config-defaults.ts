@@ -70,7 +70,15 @@ export function writeDefaultConfigs(customDir?: string): void {
   // Write config.json if it doesn't exist
   if (!existsSync(configPath)) {
     const styleConfigWithoutColors = serializableConfig(getDefaultStyleConfig());
-    atomicWriteFile(configPath, JSON.stringify(styleConfigWithoutColors, null, 2), {
+    const autoColorEntry = DEFAULT_CONFIG.colors?.auto;
+    if (!autoColorEntry || typeof autoColorEntry === 'string') {
+      throw new Error('DEFAULT_CONFIG is missing the built-in auto color alias');
+    }
+    const configWithAutoColor = {
+      ...styleConfigWithoutColors,
+      colors: { auto: { tiers: autoColorEntry.tiers } },
+    };
+    atomicWriteFile(configPath, JSON.stringify(configWithAutoColor, null, 2), {
       appendNewline: true,
     });
   }

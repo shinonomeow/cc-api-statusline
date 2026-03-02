@@ -381,12 +381,16 @@ describe('config service', () => {
       }
     });
 
-    it('config.json written by writeDefaultConfigs does not contain a colors key', () => {
+    it('config.json written by writeDefaultConfigs contains only the auto color alias', () => {
       writeDefaultConfigs(colorsTestDir);
       const raw = readFileSync(join(colorsTestDir, 'config.json'), 'utf-8');
       const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const colors = parsed['colors'];
 
-      expect(Object.prototype.hasOwnProperty.call(parsed, 'colors')).toBe(false);
+      expect(colors).toBeDefined();
+      expect(typeof colors).toBe('object');
+      expect(colors).not.toBeNull();
+      expect(Object.keys(colors as Record<string, unknown>)).toEqual(['auto']);
     });
 
     it('does not overwrite config.json if it already exists', () => {
