@@ -2,15 +2,12 @@
 
 English | [简体中文](README.zh-CN.md)
 
-A high-performance TUI statusline tool that polls API usage data from Claude API proxy services (sub2api, claude-relay-service, or custom providers) and renders a configurable one-line status display.
+A high-performance TUI statusline tool that polls API usage data from Claude API services (sub2api, claude-relay-service, or custom providers) and renders a configurable one-line status display.
 
 ## Features
 
-- ⚡ **Fast piped mode** — <25ms warm cache, <100ms p95
 - 🎨 **Highly configurable** — Layouts, colors, bar styles, display modes
 - 🔌 **Provider autodetection** — Works with sub2api, claude-relay-service, custom providers
-- 💾 **Smart caching** — Disk cache with atomic writes, TTL validation, automatic garbage collection
-- 🎯 **Claude Code integration** — Auto-setup with `--install` command
 - 📊 **Multiple components** — Daily/weekly/monthly quotas, balance, tokens, rate limits
 - 🔁 **Hot switching** — Auto-detects API endpoint and credential changes at runtime
 - 🔒 **Reliability** — No stale data display, race-condition-free writes, auto cache cleanup

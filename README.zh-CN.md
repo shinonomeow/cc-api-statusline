@@ -2,13 +2,12 @@
 
 [English](README.md) | 简体中文
 
-在ClaudeCode状态栏显示API用量，通过轮询 Claude API 代理服务（sub2api、claude-relay-service 或自定义提供商）获取用量数据，并以可配置显示样式。
+在ClaudeCode状态栏显示API用量，通过轮询 Claude API 服务（sub2api、claude-relay-service 或自定义提供商）获取用量数据，并以可配置显示样式。
 
 ## 特性
 
 - 🎨 **高度可配置** — 布局、颜色、进度条样式、显示模式任意调整
 - 🔌 **提供商自动识别** — 开箱支持 sub2api、claude-relay-service 及自定义提供商
-- 💾 **智能缓存** — 原子写入磁盘缓存、TTL 验证、自动垃圾回收
 - 🎯 **Claude Code 集成** — 一键 `--install` 完成安装
 - 📊 **多维度用量展示** — 每日/每周/每月配额、余额、Token数、速率限制
 - 🔁 **热切换** — 自动感知 API 端点和凭证变更，无需重启
