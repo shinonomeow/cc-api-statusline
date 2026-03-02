@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchSub2api } from '../sub2api.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
 import type { Config } from '../../types/index.js';
+import { DEFAULT_TIMEOUT_BUDGET_MS } from '../../core/constants.js';
 
 // Mock the http module
 vi.mock('../http.js', () => ({
@@ -22,6 +23,11 @@ describe('sub2api provider', () => {
     vi.clearAllMocks();
     const httpModule = await import('../http.js');
     mockFetch = (httpModule.secureFetch as unknown) as ReturnType<typeof vi.fn>;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetAllMocks();
   });
 
   const mockResponse = {
@@ -80,7 +86,7 @@ describe('sub2api provider', () => {
             'Accept': 'application/json',
           }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         expect.stringMatching(/^claude-cli\/[\d.]+/)
       );
     });
@@ -104,7 +110,7 @@ describe('sub2api provider', () => {
             'Accept': 'application/json',
           }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         'custom-client/1.0'
       );
     });
@@ -128,7 +134,7 @@ describe('sub2api provider', () => {
             'Accept': 'application/json',
           }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });
@@ -152,7 +158,7 @@ describe('sub2api provider', () => {
             'Accept': 'application/json',
           }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });

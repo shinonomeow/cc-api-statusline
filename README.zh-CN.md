@@ -71,7 +71,7 @@ bunx cc-api-statusline@latest --install
       {
         "id": "e62435aa-bdf5-4ded-a2e3-ae13582439db",
         "type": "custom-command",
-        "commandPath": "bunx -y cc-api-statusline@latest",
+        "commandPath": "bunx -y cc-api-statusline@latest --embedded",
         "preserveColors": true,
         "timeout": 10000
       }
@@ -79,6 +79,8 @@ bunx cc-api-statusline@latest --install
   ]
 }
 ```
+
+> **此处必须加 `--embedded`。** 不加的话，cc-api-statusline 会在输出前插入 ANSI 重置码（`\x1b[0m`），破坏 cc-statusline 的 powerline 背景色。该标志告知 cc-api-statusline 当前运行在宿主渲染器内部，由宿主负责格式化。
 
 使用 `bunx` 可每次自动拉取最新版本，无需全局安装。如需卸载：
 

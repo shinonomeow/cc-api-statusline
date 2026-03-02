@@ -13,7 +13,7 @@ import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
 import { extractOrigin } from './health-probe.js';
 import { createQuotaWindow } from './quota-window.js';
-import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
+import { DEFAULT_TIMEOUT_BUDGET_MS } from '../core/constants.js';
 import { computeNextMidnightLocal } from '../services/time.js';
 
 /**
@@ -89,7 +89,7 @@ export async function fetchClaudeRelayService(
   baseUrl: string,
   token: string,
   config: Config,
-  timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_BUDGET_MS
 ): Promise<NormalizedUsage> {
   // Extract origin to properly construct URL
   // /apiStats is mounted at root, not under /api

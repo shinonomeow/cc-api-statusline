@@ -181,9 +181,11 @@ describe('main CLI', () => {
   });
 
   it('should handle --install flag', async () => {
+    const testHome = join(tmpdir(), `cc-install-home-${Date.now()}`);
     const testEnvWithConfig = {
       ...process.env,
-      CLAUDE_CONFIG_DIR: join(tmpdir(), `cc-install-test-${Date.now()}`),
+      HOME: testHome,
+      CLAUDE_CONFIG_DIR: join(testHome, '.claude'),
     };
 
     const result = await execFile('bun', ['run', mainPath, '--install', '--runner', 'npx'], {
@@ -195,10 +197,11 @@ describe('main CLI', () => {
   });
 
   it('should handle --uninstall flag', async () => {
-    const testDir = join(tmpdir(), `cc-uninstall-test-${Date.now()}`);
+    const testHome = join(tmpdir(), `cc-uninstall-home-${Date.now()}`);
     const testEnvWithConfig = {
       ...process.env,
-      CLAUDE_CONFIG_DIR: testDir,
+      HOME: testHome,
+      CLAUDE_CONFIG_DIR: join(testHome, '.claude'),
     };
 
     // First install

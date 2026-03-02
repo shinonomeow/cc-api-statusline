@@ -14,6 +14,7 @@ export interface ParsedArgs {
   uninstall: boolean;
   applyConfig: boolean;
   force: boolean;
+  embedded: boolean;
   configPath?: string;
   runner?: 'npx' | 'bunx';
 }
@@ -30,6 +31,7 @@ export function parseArgs(): ParsedArgs {
   let uninstall = false;
   let applyConfig = false;
   let force = false;
+  let embedded = false;
   let configPath: string | undefined;
   let runner: 'npx' | 'bunx' | undefined;
 
@@ -49,6 +51,8 @@ export function parseArgs(): ParsedArgs {
       applyConfig = true;
     } else if (arg === '--force') {
       force = true;
+    } else if (arg === '--embedded') {
+      embedded = true;
     } else if (arg === '--config' && i + 1 < args.length) {
       configPath = args[i + 1];
       i++; // Skip next arg
@@ -61,7 +65,11 @@ export function parseArgs(): ParsedArgs {
     }
   }
 
-  return { help, version, once, install, uninstall, applyConfig, force, configPath, runner };
+  // Env var fallback: accepts '1' or 'true' (aligned with capabilities.ts convention)
+  const envVal = process.env['CC_API_STATUSLINE_EMBEDDED'];
+  embedded = embedded || envVal === '1' || envVal === 'true';
+
+  return { help, version, once, install, uninstall, applyConfig, force, embedded, configPath, runner };
 }
 
 /**
@@ -84,14 +92,16 @@ Options:
   --apply-config     Apply endpoint config changes (updates lock file, clears caches)
   --runner <runner>  Package runner: npx or bunx (default: auto-detect)
   --force            Force overwrite existing statusline configuration
+  --embedded         Skip host formatting (for use inside cc-statusline)
 
 Environment Variables:
-  ANTHROPIC_BASE_URL       API endpoint (required)
-  ANTHROPIC_AUTH_TOKEN     API key (required)
-  CC_STATUSLINE_PROVIDER   Override provider detection
-  CC_STATUSLINE_POLL       Override poll interval (seconds)
-  CC_STATUSLINE_TIMEOUT    Piped mode timeout (milliseconds, default 5000)
-  DEBUG or CC_STATUSLINE_DEBUG  Enable debug logging to ~/.claude/cc-api-statusline/debug.log
+  ANTHROPIC_BASE_URL           API endpoint (required)
+  ANTHROPIC_AUTH_TOKEN         API key (required)
+  CC_STATUSLINE_PROVIDER       Override provider detection
+  CC_STATUSLINE_POLL           Override poll interval (seconds)
+  CC_STATUSLINE_TIMEOUT        Piped mode timeout (milliseconds, default 5000)
+  DEBUG or CC_STATUSLINE_DEBUG Enable debug logging to ~/.claude/cc-api-statusline/debug.log
+  CC_API_STATUSLINE_EMBEDDED   Skip host formatting when set to "1" or "true" (for use inside cc-statusline)
 
 Config File:
   ~/.claude/cc-api-statusline/config.json

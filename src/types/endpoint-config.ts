@@ -23,11 +23,9 @@ export interface EndpointAuthConfig {
 /**
  * Provider detection configuration
  *
- * Used for auto-detecting provider from baseUrl.
- * Either urlPatterns or healthMatch can trigger detection.
+ * Used for auto-detecting provider from baseUrl via health probe.
  */
 export interface EndpointDetectionConfig {
-  urlPatterns?: string[]; // URL substrings to match (e.g., ["/apistats"])
   healthMatch?: Record<string, string>; // Health probe response field matchers ("*" = any value present)
 }
 

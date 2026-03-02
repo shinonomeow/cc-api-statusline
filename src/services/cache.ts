@@ -8,6 +8,7 @@ import { readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import type { CacheEntry, EnvSnapshot, Config, ProviderDetectionCacheEntry } from '../types/index.js';
 import { CACHE_VERSION, isCacheEntry, isProviderDetectionCacheEntry } from '../types/index.js';
+import { DETECTION_TTL_BASE_S } from '../core/constants.js';
 import { shortHash } from './hash.js';
 import { ensureDir } from './ensure-dir.js';
 import { atomicWriteFile } from './atomic-write.js';
@@ -316,6 +317,68 @@ export function readProviderDetectionCache(baseUrl: string): ProviderDetectionCa
   } catch (err: unknown) {
     logger.warn(`Failed to parse provider detection cache from ${path}: ${err}`);
     return null;
+  }
+}
+
+/**
+ * Delete provider detection cache file
+ *
+ * Used to force re-detection after a provider-mismatch error.
+ * Silently ignores ENOENT. Logs other errors but never throws.
+ *
+ * @param baseUrl - ANTHROPIC_BASE_URL
+ */
+export function deleteProviderDetectionCache(baseUrl: string): void {
+  const path = getProviderDetectionCachePath(baseUrl);
+  try {
+    unlinkSync(path);
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return;
+    }
+    logger.warn(`Failed to delete provider detection cache at ${path}: ${err}`);
+  }
+}
+
+/**
+ * Detection cache metadata (age + TTL) read in a single file operation
+ */
+export interface DetectionCacheMeta {
+  /** Age of the cache entry in milliseconds, or null if no valid entry on disk */
+  ageMs: number | null;
+  /** TTL of the cache entry in milliseconds (falls back to DETECTION_TTL_BASE_S default) */
+  ttlMs: number;
+}
+
+/**
+ * Read provider detection cache metadata in one file read
+ *
+ * Returns both ageMs and ttlMs from a single readFileSync call, eliminating
+ * the triple-read that occurred when getDetectionCacheAgeMs + getDetectionCacheTtlMs
+ * were called separately. Falls back to {ageMs: null, ttlMs: default} on any error.
+ *
+ * @param baseUrl - ANTHROPIC_BASE_URL
+ * @returns Detection cache metadata
+ */
+export function readDetectionCacheMeta(baseUrl: string): DetectionCacheMeta {
+  const defaultTtlMs = DETECTION_TTL_BASE_S * 1000;
+  const path = getProviderDetectionCachePath(baseUrl);
+
+  let content: string;
+  try {
+    content = readFileSync(path, 'utf-8');
+  } catch {
+    return { ageMs: null, ttlMs: defaultTtlMs };
+  }
+
+  try {
+    const data = JSON.parse(content) as unknown;
+    if (!isProviderDetectionCacheEntry(data)) return { ageMs: null, ttlMs: defaultTtlMs };
+    const detectedAt = new Date(data.detectedAt).getTime();
+    const ageMs = isNaN(detectedAt) ? null : Date.now() - detectedAt;
+    return { ageMs, ttlMs: data.ttlSeconds * 1000 };
+  } catch {
+    return { ageMs: null, ttlMs: defaultTtlMs };
   }
 }
 

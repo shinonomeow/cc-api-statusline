@@ -12,6 +12,8 @@
  *   2. Timeout support (prevents hanging on unresponsive servers)
  */
 
+import { DEFAULT_TIMEOUT_BUDGET_MS } from '../core/constants.js';
+
 /**
  * Custom error types
  */
@@ -106,7 +108,7 @@ async function readBodyWithLimit(response: Response): Promise<string> {
 export async function secureFetch(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = 5000,
+  timeoutMs: number = DEFAULT_TIMEOUT_BUDGET_MS,
   userAgent?: string | null
 ): Promise<string> {
   // Add timeout via AbortSignal

@@ -1,7 +1,8 @@
 /**
  * Provider Autodetection
  *
- * Health probe + URL-pattern based provider detection with multi-tier caching
+ * Health probe based provider detection with multi-tier caching.
+ * Detection is config-driven via EndpointDetectionConfig.healthMatch patterns.
  */
 
 import type { EndpointConfigRegistry } from '../types/endpoint-config.js';
@@ -10,8 +11,8 @@ import {
   readProviderDetectionCache,
   writeProviderDetectionCache,
 } from '../services/cache.js';
-import { PROVIDER_DETECTION_TTL_SECONDS } from '../types/index.js';
 import { logger } from '../services/logger.js';
+import { DEFAULT_TIMEOUT_BUDGET_MS, DETECTION_TTL_BASE_S } from '../core/constants.js';
 
 /**
  * Detection cache entry
@@ -27,64 +28,6 @@ interface DetectionCacheEntry {
  */
 const detectionCache = new Map<string, DetectionCacheEntry>();
 
-interface DetectProviderFromUrlPatternOptions {
-  includeBuiltInPatterns?: boolean;
-  fallbackProvider?: string | null;
-}
-
-/**
- * Detect provider from base URL using URL pattern matching
- *
- * Priority:
- * 1. Endpoint configs with urlPatterns
- * 2. Built-in providers (URL pattern match for distinctive endpoints)
- * 3. Default to sub2api
- *
- * @param baseUrl - ANTHROPIC_BASE_URL value
- * @param endpointConfigs - Endpoint config registry
- * @returns Provider ID
- */
-export function detectProviderFromUrlPattern(
-  baseUrl: string,
-  endpointConfigs: EndpointConfigRegistry = {},
-  options: DetectProviderFromUrlPatternOptions = {}
-): string | null {
-  const includeBuiltInPatterns = options.includeBuiltInPatterns ?? true;
-  const fallbackProvider = Object.prototype.hasOwnProperty.call(options, 'fallbackProvider')
-    ? (options.fallbackProvider ?? null)
-    : 'sub2api';
-
-  // Normalize URL for comparison (lowercase, remove trailing slash)
-  const normalizedUrl = baseUrl.toLowerCase().replace(/\/$/, '');
-
-  // Check endpoint configs (only if they have urlPatterns in detection config)
-  for (const [providerId, config] of Object.entries(endpointConfigs)) {
-    const urlPatterns = config.detection?.urlPatterns;
-    if (urlPatterns && urlPatterns.length > 0) {
-      for (const pattern of urlPatterns) {
-        const normalizedPattern = pattern.toLowerCase();
-
-        // Substring match
-        if (normalizedUrl.includes(normalizedPattern)) {
-          return providerId;
-        }
-      }
-    }
-  }
-
-  // Check built-in providers (only distinctive URL patterns, not domain names)
-  // Note: Domain-based detection removed in favor of health probe
-  if (
-    includeBuiltInPatterns &&
-    (normalizedUrl.includes('/apistats') || normalizedUrl.includes('/api/user-stats'))
-  ) {
-    return 'claude-relay-service';
-  }
-
-  // Default to sub2api (most common)
-  return fallbackProvider;
-}
-
 /**
  * Resolve provider with multi-tier caching
  *
@@ -92,10 +35,8 @@ export function detectProviderFromUrlPattern(
  * 1. Explicit override (CC_STATUSLINE_PROVIDER) - immediate return
  * 2. In-memory cache - return if hit
  * 3. Disk cache - return if hit and TTL valid
- * 4. Endpoint config URL patterns - cache and return
- * 5. Health probe - cache (memory + disk) and return
- * 6. Built-in URL pattern fallback - cache and return
- * 7. Default to sub2api
+ * 4. Health probe (config-driven via healthMatch) - cache (memory + disk) and return
+ * 5. Default to sub2api
  *
  * @param baseUrl - ANTHROPIC_BASE_URL value
  * @param providerOverride - CC_STATUSLINE_PROVIDER env override
@@ -107,7 +48,7 @@ export async function resolveProvider(
   baseUrl: string,
   providerOverride: string | null,
   endpointConfigs: EndpointConfigRegistry = {},
-  probeTimeoutMs: number = 1500
+  probeTimeoutMs: number = DEFAULT_TIMEOUT_BUDGET_MS
 ): Promise<string> {
   // 1. Explicit override takes precedence
   if (providerOverride) {
@@ -137,37 +78,19 @@ export async function resolveProvider(
     return diskCached.provider;
   }
 
-  // 4. Check endpoint config URL patterns
-  const endpointPatternProvider = detectProviderFromUrlPattern(baseUrl, endpointConfigs, {
-    includeBuiltInPatterns: false,
-    fallbackProvider: null,
-  });
-  if (endpointPatternProvider) {
-    logger.debug('Provider detected via endpoint URL pattern', { provider: endpointPatternProvider });
-    cacheProviderDetection(baseUrl, endpointPatternProvider, 'url-pattern');
-    return endpointPatternProvider;
-  }
-
-  // 5. Health probe
+  // 4. Health probe (config-driven)
   logger.debug('Attempting health probe', { baseUrl, timeoutMs: probeTimeoutMs });
-  const probedProvider = await probeHealth(baseUrl, probeTimeoutMs);
+  const probedProvider = await probeHealth(baseUrl, probeTimeoutMs, endpointConfigs);
   if (probedProvider) {
     logger.debug('Provider detected via health probe', { provider: probedProvider });
-    // Cache detection
     cacheProviderDetection(baseUrl, probedProvider, 'health-probe');
     return probedProvider;
   }
 
-  // 6. Built-in URL pattern fallback
-  const patternProvider = detectProviderFromUrlPattern(baseUrl, {});
-  if (!patternProvider) {
-    logger.debug('Provider URL pattern detection had no match, defaulting to sub2api');
-    cacheProviderDetection(baseUrl, 'sub2api', 'url-pattern');
-    return 'sub2api';
-  }
-  logger.debug('Provider detected via built-in URL pattern', { provider: patternProvider });
-  cacheProviderDetection(baseUrl, patternProvider, 'url-pattern');
-  return patternProvider;
+  // 5. Default to sub2api
+  logger.debug('Health probe failed, defaulting to sub2api');
+  cacheProviderDetection(baseUrl, 'sub2api', 'health-probe');
+  return 'sub2api';
 }
 
 /**
@@ -176,7 +99,8 @@ export async function resolveProvider(
 function cacheProviderDetection(
   baseUrl: string,
   provider: string,
-  detectedVia: 'health-probe' | 'url-pattern' | 'override'
+  detectedVia: 'health-probe' | 'override',
+  ttlSeconds: number = DETECTION_TTL_BASE_S
 ): void {
   const now = new Date().toISOString();
 
@@ -192,8 +116,26 @@ function cacheProviderDetection(
     provider,
     detectedVia,
     detectedAt: now,
-    ttlSeconds: PROVIDER_DETECTION_TTL_SECONDS,
+    ttlSeconds,
   });
+}
+
+/**
+ * Cache provider detection result with a dynamically computed TTL
+ *
+ * Used by the maintenance scheduler after a proactive health probe.
+ * Updates both in-memory and disk caches.
+ *
+ * @param baseUrl - ANTHROPIC_BASE_URL
+ * @param provider - Detected provider ID
+ * @param ttlSeconds - Dynamic TTL computed by computeDynamicDetectionTtl
+ */
+export function cacheProviderDetectionWithTtl(
+  baseUrl: string,
+  provider: string,
+  ttlSeconds: number
+): void {
+  cacheProviderDetection(baseUrl, provider, 'health-probe', ttlSeconds);
 }
 
 /**

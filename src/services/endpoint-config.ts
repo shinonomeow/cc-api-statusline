@@ -254,7 +254,6 @@ export function getBuiltInEndpointConfigs(): EndpointConfigRegistry {
         resetSemantics: 'rolling-window',
       },
       detection: {
-        urlPatterns: ['/apistats', '/api/user-stats'],
         healthMatch: { service: '*' },
       },
       responseMapping: {

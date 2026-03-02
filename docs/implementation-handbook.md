@@ -1,7 +1,7 @@
 # cc-api-statusline - Implementation Handbook (Current)
 
 This handbook is the implementation source of truth for the current repository state.
-It reflects code behavior in `src/` as of 2026-02-28.
+It reflects code behavior in `src/` as of 2026-03-02.
 
 ## 0. Scope and Precedence
 
@@ -27,7 +27,7 @@ Main modules:
 - `src/providers/*`: adapter fetch + normalize per backend
 - `src/services/config.ts`: config load/merge/validate/save
 - `src/services/env.ts`: env + `settings.json` overlay
-- `src/services/cache.ts`: cache IO, cache validity checks, config hash
+- `src/services/cache.ts`: cache IO, cache validity checks, config hash, provider detection cache metadata
 - `src/renderer/*`: component rendering, colors, truncation, error states
 - `src/types/*`: canonical data/config/cache types
 
@@ -55,6 +55,7 @@ Mode is determined in `main.ts`:
 - `--uninstall` (remove statusline widget registration)
 - `--runner <npx|bunx>` (specify package runner for install, default: auto-detect)
 - `--force` (force overwrite existing statusline configuration)
+- `--embedded` (skip host formatting, for use inside cc-statusline; also set via `CC_API_STATUSLINE_EMBEDDED` env var)
 
 ### 2.3 Environment variables
 
@@ -68,6 +69,7 @@ Optional:
 - `CC_STATUSLINE_PROVIDER`
 - `CC_STATUSLINE_POLL` (seconds, min 5, default 30)
 - `CC_STATUSLINE_TIMEOUT` (piped total timeout budget ms, default 5000)
+- `CC_API_STATUSLINE_EMBEDDED` (accepts `'1'` or `'true'`, skip host formatting in embedded piped mode)
 - `CC_API_STATUSLINE_CACHE_DIR` (cache dir override)
 - `CC_API_STATUSLINE_LOG_DIR` (debug log dir override)
 - `CLAUDE_CONFIG_DIR` (for `settings.json` overlay path)
@@ -253,9 +255,12 @@ Resolution order:
 
 1. `CC_STATUSLINE_PROVIDER` override
 2. in-memory baseUrl cache hit
-3. custom provider `urlPatterns`
-4. built-in relay heuristics (`/apistats`, `relay`, `/api/user-stats`)
-5. default fallback: `sub2api`
+3. disk cache (24h TTL with dynamic TTL adjustment via `DETECTION_TTL_*` constants)
+4. health probe (`healthMatch`) — most-specific match wins
+5. built-in relay heuristics (`/apistats`, `relay`, `/api/user-stats`)
+6. default fallback: `sub2api`
+
+**Cache metadata** (`src/services/cache.ts`): The `readDetectionCacheMeta(baseUrl): DetectionCacheMeta` function reads both cache age and TTL in a single file operation, returning `{ageMs: number | null, ttlMs: number}`. This replaces the separate age/TTL read operations from prior versions.
 
 ## 6. Secure HTTP Layer
 
@@ -349,7 +354,7 @@ In `execute-cycle.ts`:
 
 ### Watchdog timer (`src/cli/piped-mode.ts`)
 
-Piped mode installs a watchdog `setTimeout` at `rawTimeoutMs - 100ms`. If it fires (process is about to be killed by Claude Code), it writes `⟳ Refreshing...` to stdout and calls `process.exit(0)`. This prevents the `[Signal: SIGKILL]` error indicator from appearing in the statusline when the host budget expires before the execution cycle completes.
+Piped mode installs a watchdog `setTimeout` at `rawTimeoutMs - TIMEOUT_HEADROOM_MS` (where `TIMEOUT_HEADROOM_MS = 100ms`). If it fires (process is about to be killed by Claude Code), it writes `⟳ Refreshing...` to stdout and calls `process.exit(0)`. This prevents the `[Signal: SIGKILL]` error indicator from appearing in the statusline when the host budget expires before the execution cycle completes.
 
 ## 9. Renderer Model
 

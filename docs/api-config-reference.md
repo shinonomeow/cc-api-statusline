@@ -46,7 +46,6 @@ Each `*.json` file in `api-config/` must follow this schema:
     "planName": "Unknown"
   },
   "detection": {
-    "urlPatterns": ["/custom-api"],
     "healthMatch": { "status": "ok" }
   },
   "requestBody": null,
@@ -81,7 +80,7 @@ Each `*.json` file in `api-config/` must follow this schema:
 | `displayName` | string | `provider` value | Human-readable name for display |
 | `endpoint.contentType` | string | `"application/json"` | Request Content-Type header |
 | `defaults` | object | `{}` | Default values for missing response fields |
-| `detection` | object | `null` | Auto-detection rules (URL patterns, health probe) |
+| `detection` | object | `null` | Auto-detection rules (health probe matching) |
 | `requestBody` | object \| null | `null` | JSON body template for POST requests |
 | `spoofClaudeCodeUA` | boolean \| string | `false` | User-Agent spoofing (see config.json docs) |
 
@@ -242,7 +241,6 @@ The `detection` object configures automatic provider detection:
 ```json
 {
   "detection": {
-    "urlPatterns": ["/custom-api", "custom.example.com"],
     "healthMatch": { "status": "ok", "version": "*" }
   }
 }
@@ -252,10 +250,9 @@ The `detection` object configures automatic provider detection:
 1. `CC_STATUSLINE_PROVIDER` env override
 2. In-memory cache
 3. Disk cache (24h TTL)
-4. URL pattern matching (`urlPatterns`)
-5. Health probe (`healthMatch`)
-6. Built-in fallback patterns
-7. Default to `sub2api`
+4. Health probe (`healthMatch`) — most-specific match wins
+5. Built-in fallback patterns
+6. Default to `sub2api`
 
 **Health Match**:
 - Probes `<baseUrl>/health` or `<baseUrl>/v1/health`
@@ -309,7 +306,7 @@ This updates the lock file and clears caches.
      "displayName": "My API",
      "endpoint": { "path": "/usage", "method": "GET" },
      "auth": { "type": "bearer-header" },
-     "detection": { "urlPatterns": ["my-api.com"] },
+     "detection": { "healthMatch": { "service": "my-api" } },
      "responseMapping": {
        "billingMode": "subscription",
        "daily.used": "$.usage.today",
@@ -338,7 +335,7 @@ This updates the lock file and clears caches.
 - Run `cc-api-statusline --apply-config` to update lock file
 
 **Provider not detected?**
-- Check `urlPatterns` in detection config
+- Check `healthMatch` in detection config — ensure the fields/values match your `/health` response
 - Set `CC_STATUSLINE_PROVIDER=my-provider` to force provider
 - Enable debug logging: `DEBUG=1 cc-api-statusline --once`
 

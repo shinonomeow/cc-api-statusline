@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { executeCycle } from '../execute-cycle.js';
 import type { ExecutionContext } from '../types.js';
 import type { EnvSnapshot, Config, CacheEntry, NormalizedUsage } from '../../types/index.js';
 import { CACHE_VERSION, DEFAULT_CONFIG, createEmptyNormalizedUsage } from '../../types/index.js';
 import type { ProviderAdapter } from '../../providers/index.js';
+import { DEFAULT_TIMEOUT_BUDGET_MS, TIMEOUT_HEADROOM_MS } from '../../core/constants.js';
 
 describe('executeCycle', () => {
   const baseEnv: EnvSnapshot = {
@@ -51,14 +52,18 @@ describe('executeCycle', () => {
     cachedEntry: null,
     providerId: 'test-provider',
     provider: mockProvider,
-    timeoutBudgetMs: 5000,
+    timeoutBudgetMs: DEFAULT_TIMEOUT_BUDGET_MS,
     startTime: Date.now(),
-    fetchTimeoutMs: 3000,
+    fetchTimeoutMs: DEFAULT_TIMEOUT_BUDGET_MS - TIMEOUT_HEADROOM_MS,
     ...overrides,
   });
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('Path A: Cached renderedLine usable', () => {
@@ -79,6 +84,8 @@ describe('executeCycle', () => {
       expect(result.output).toBe('Cached output');
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).toBeNull();
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('A');
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProvider.fetch).not.toHaveBeenCalled();
     });
@@ -113,6 +120,8 @@ describe('executeCycle', () => {
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).not.toBeNull();
       expect(result.cacheUpdate?.configHash).toBe('newconfig');
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('B');
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
@@ -144,6 +153,8 @@ describe('executeCycle', () => {
       // Should fetch fresh data (Path C), not use cached renderedLine
       expect(result.output).not.toBe('Cached output');
       expect(result.exitCode).toBe(0);
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('C');
       expect(mockFetch).toHaveBeenCalled();
     });
   });
@@ -177,6 +188,8 @@ describe('executeCycle', () => {
       expect(result.cacheUpdate).not.toBeNull();
       expect(result.cacheUpdate?.configHash).toBe('newconfig');
       expect(result.cacheUpdate?.renderedLine).toBe(result.output);
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('B');
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProvider.fetch).not.toHaveBeenCalled();
     });
@@ -208,6 +221,8 @@ describe('executeCycle', () => {
       expect(result.cacheUpdate).not.toBeNull();
       expect(result.cacheUpdate?.provider).toBe('test-provider');
       expect(result.cacheUpdate?.configHash).toBe('config123');
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('C');
       expect(mockFetch).toHaveBeenCalledWith('https://api.example.com', 'test-token', baseConfig, 3000);
     });
 
@@ -239,6 +254,8 @@ describe('executeCycle', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).not.toBeNull();
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('C');
       expect(mockFetch).toHaveBeenCalled();
     });
 
@@ -270,6 +287,8 @@ describe('executeCycle', () => {
       const result = await executeCycle(ctx);
 
       expect(result.cacheUpdate?.ttlSeconds).toBe(60); // Should use env override
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('C');
     });
 
     it('should include errorState in cache entry', async () => {
@@ -295,6 +314,8 @@ describe('executeCycle', () => {
 
       expect(result.cacheUpdate).not.toBeNull();
       expect(result.cacheUpdate?.errorState).toBe(null);
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('C');
     });
   });
 
@@ -324,6 +345,8 @@ describe('executeCycle', () => {
       expect(result.output).toContain('Fetching');
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).toBeNull();
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('D');
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProvider.fetch).not.toHaveBeenCalled();
     });
@@ -348,6 +371,8 @@ describe('executeCycle', () => {
       expect(result.output).toContain('Fetching');
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).toBeNull();
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('D');
       // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(mockProvider.fetch).not.toHaveBeenCalled();
     });
@@ -382,6 +407,8 @@ describe('executeCycle', () => {
       expect(result.output).not.toBe('Stale cache'); // Not using stale cache anymore
       expect(result.exitCode).toBe(0);
       expect(result.cacheUpdate).toBeNull();
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('D');
       expect(mockFetch).toHaveBeenCalled();
     });
 
@@ -408,7 +435,58 @@ describe('executeCycle', () => {
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain('test-provider'); // Error message includes provider
       expect(result.cacheUpdate).toBeNull();
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('D');
       expect(mockFetch).toHaveBeenCalled();
+    });
+
+    it('should set invalidateProvider=true when fetch throws SyntaxError', async () => {
+      const mockFetch = vi.fn().mockRejectedValue(new SyntaxError('Unexpected token < in JSON'));
+      const provider: ProviderAdapter = { fetch: mockFetch };
+
+      const ctx = createMockContext({ provider, cachedEntry: null });
+      const result = await executeCycle(ctx);
+
+      expect(result.invalidateProvider).toBe(true);
+      expect(result.exitCode).toBe(0);
+      expect(result.cacheUpdate).toBeNull();
+      expect(result.path).toBe('D');
+    });
+
+    it('should set invalidateProvider=true when fetch throws validation error', async () => {
+      const mockFetch = vi.fn().mockRejectedValue(new Error('Invalid response: expected object'));
+      const provider: ProviderAdapter = { fetch: mockFetch };
+
+      const ctx = createMockContext({ provider, cachedEntry: null });
+      const result = await executeCycle(ctx);
+
+      expect(result.invalidateProvider).toBe(true);
+      expect(result.exitCode).toBe(0);
+      expect(result.path).toBe('D');
+    });
+
+    it('should set invalidateProvider=false when fetch throws HTTP 500', async () => {
+      const err = Object.assign(new Error('Server error'), { statusCode: 500 });
+      const mockFetch = vi.fn().mockRejectedValue(err);
+      const provider: ProviderAdapter = { fetch: mockFetch };
+
+      const ctx = createMockContext({ provider, cachedEntry: null });
+      const result = await executeCycle(ctx);
+
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('D');
+    });
+
+    it('should set invalidateProvider=false when fetch throws HTTP 404', async () => {
+      const err = Object.assign(new Error('Not found'), { statusCode: 404 });
+      const mockFetch = vi.fn().mockRejectedValue(err);
+      const provider: ProviderAdapter = { fetch: mockFetch };
+
+      const ctx = createMockContext({ provider, cachedEntry: null });
+      const result = await executeCycle(ctx);
+
+      expect(result.invalidateProvider).toBe(false);
+      expect(result.path).toBe('D');
     });
   });
 });

@@ -10,7 +10,7 @@ import type { EndpointConfig } from '../types/endpoint-config.js';
 import { secureFetch } from './http.js';
 import { resolveUserAgent } from '../services/user-agent.js';
 import { logger } from '../services/logger.js';
-import { DEFAULT_FETCH_TIMEOUT_MS } from '../core/constants.js';
+import { DEFAULT_TIMEOUT_BUDGET_MS } from '../core/constants.js';
 import { mapResponseToUsage } from './response-mapping.js';
 
 /**
@@ -49,7 +49,7 @@ export async function fetchEndpoint(
   token: string,
   appConfig: Config,
   endpointConfig: EndpointConfig,
-  timeoutMs: number = DEFAULT_FETCH_TIMEOUT_MS
+  timeoutMs: number = DEFAULT_TIMEOUT_BUDGET_MS
 ): Promise<NormalizedUsage> {
   // Validate config
   const validationError = validateEndpointConfigSemantics(endpointConfig);

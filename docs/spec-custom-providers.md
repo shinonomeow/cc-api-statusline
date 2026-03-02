@@ -34,7 +34,9 @@ Beyond the two built-in providers (`sub2api`, `claude-relay-service`), users can
 
       "requestBody": null,
 
-      "urlPatterns": ["my-proxy.example.com"],
+      "detection": {
+        "healthMatch": { "service": "my-proxy" }
+      },
 
       "responseMapping": {
         "billingMode":        "balance",
@@ -77,12 +79,12 @@ Beyond the two built-in providers (`sub2api`, `claude-relay-service`), users can
 | `endpoint` | string | yes | Path appended to `ANTHROPIC_BASE_URL` |
 | `method` | `"GET"` \| `"POST"` | yes | HTTP method |
 | `contentType` | string | no | Request content-type; default `application/json` |
-| `auth.type` | `"header"` \| `"body"` | yes | Where to send the token |
-| `auth.header` | string | conditional | Header name when `type == "header"` |
+| `auth.type` | `"bearer-header"` \| `"body-key"` \| `"custom-header"` | yes | Authentication method |
+| `auth.header` | string | conditional | Header name when `type == "custom-header"` |
 | `auth.prefix` | string | no | Prefix before token value (e.g. `"Bearer "`) |
-| `auth.bodyField` | string | conditional | JSON body key when `type == "body"` |
+| `auth.bodyField` | string | conditional | JSON body key when `type == "body-key"` |
 | `requestBody` | object \| null | no | Static JSON body (token is injected via `auth.bodyField`) |
-| `urlPatterns` | string[] | no | Substring patterns for autodetect matching |
+| `detection.healthMatch` | object | no | Key/value patterns matched against `/health` response |
 | `responseMapping` | object | yes | Maps response paths → `NormalizedUsage` fields |
 
 ### Response mapping
@@ -121,13 +123,16 @@ rateLimit.*
 
 ## Autodetect integration
 
-Custom providers participate in autodetection via their `urlPatterns` array. The registry checks custom providers **before** built-in fallbacks:
+Custom providers participate in autodetection via `detection.healthMatch`. The registry probes `/health` and matches the response:
 
 ```
-1. For each customProvider where urlPatterns is non-empty:
-     if ANTHROPIC_BASE_URL includes any pattern → match
-2. Then check built-in providers (relay pattern → relay, else → sub2api)
+1. Fetch GET <origin>/health
+2. For each provider with healthMatch (sorted: more fields = higher priority):
+     if all healthMatch fields match response → select provider
+3. Then check built-in providers (relay heuristics, else → sub2api)
 ```
+
+When two providers have the same number of `healthMatch` fields, they are ordered alphabetically by provider ID (deterministic tiebreaker).
 
 ---
 
@@ -137,9 +142,9 @@ On config load, validate each custom provider:
 
 - `endpoint` must start with `/`
 - `method` must be `GET` or `POST`
-- `auth.type` must be `header` or `body`
-- If `auth.type == "header"`, `auth.header` is required
-- If `auth.type == "body"`, `auth.bodyField` is required
+- `auth.type` must be `bearer-header`, `body-key`, or `custom-header`
+- If `auth.type == "custom-header"`, `auth.header` is required
+- If `auth.type == "body-key"`, `auth.bodyField` is required
 - `responseMapping` must have at least `billingMode`
 - Invalid providers are logged as warnings and skipped (never crash)
 

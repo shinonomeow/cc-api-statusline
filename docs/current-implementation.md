@@ -1,6 +1,6 @@
 # Current Implementation (Snapshot)
 
-> Last updated: 2026-03-01
+> Last updated: 2026-03-02
 > This file reflects the actual code in `src/`.
 > For complete rules and implementation guidance, use `docs/implementation-handbook.md`.
 
@@ -34,12 +34,18 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 
 ### `executePipedMode` flow (`src/cli/piped-mode.ts`)
 
-1. Read `CC_STATUSLINE_TIMEOUT` (default 5000ms)
-2. **Watchdog timer** (piped mode only): schedule `setTimeout` at `rawTimeoutMs - 100ms`; if fired, write `⟳ Refreshing...` to stdout and `process.exit(0)` — prevents `[Signal: SIGKILL]` from Claude Code
-3. `buildExecutionContext(args)` — reads env, config, cache, resolves provider
-4. run `executeCycle()` (`src/core/execute-cycle.ts`)
-5. `formatOutput(output, isPiped)` — prepend ANSI reset, replace spaces with NBSP in piped mode
-6. write cache if updated, exit with result code
+1. Detect output mode: `OutputMode = 'tty' | 'piped' | 'piped-embedded'`
+   - Determined by: `isPiped ? (args.embedded ? 'piped-embedded' : 'piped') : 'tty'`
+   - `args.embedded` resolved from `--embedded` flag or `CC_API_STATUSLINE_EMBEDDED` env var (accepts `'1'` or `'true'`)
+2. Read `CC_STATUSLINE_TIMEOUT` (default 5000ms)
+3. **Watchdog timer** (piped mode only): schedule `setTimeout` at `rawTimeoutMs - 100ms`; if fired, write `⟳ Refreshing...` to stdout and `process.exit(0)` — prevents `[Signal: SIGKILL]` from Claude Code
+4. `buildExecutionContext(args)` — reads env, config, cache, resolves provider
+5. run `executeCycle()` (`src/core/execute-cycle.ts`)
+6. `formatOutput(output, outputMode)` — applies mode-specific formatting:
+   - `'tty'`: append newline
+   - `'piped'`: prepend ANSI reset + replace spaces with NBSP
+   - `'piped-embedded'`: no host formatting (preserves color sequences for embedded use)
+7. write cache if updated, exit with result code
 
 ## Unified execution core paths (`executeCycle`)
 
@@ -68,7 +74,7 @@ There is currently **no long-running standalone polling daemon** in `src/main.ts
 - Directory creation uses `ensureDir()` in `src/services/ensure-dir.ts` (mode 0700)
 - Piped timeout budget uses `CC_STATUSLINE_TIMEOUT` (default `5000ms`)
 - Version is read dynamically from `package.json`
-- Shared constants live in `src/core/constants.ts`: `EXIT_BUFFER_MS`, `LOADING_FALLBACK`, `DEFAULT_FETCH_TIMEOUT_MS`, `STALENESS_THRESHOLD_MINUTES`, `VERY_STALE_THRESHOLD_MINUTES`
+- Shared constants live in `src/core/constants.ts`: `DEFAULT_TIMEOUT_BUDGET_MS`, `TTY_TIMEOUT_BUDGET_MS`, `EXIT_BUFFER_MS`, `TIMEOUT_HEADROOM_MS`, `STALENESS_THRESHOLD_MINUTES`, `VERY_STALE_THRESHOLD_MINUTES`, `DETECTION_TTL_BASE_S`, `DETECTION_TTL_MAX_S`, `DETECTION_TTL_CHANGED_S`, `DETECTION_TTL_FAILED_S`
 
 ## Debug logging
 

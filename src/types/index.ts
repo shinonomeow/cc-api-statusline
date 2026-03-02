@@ -51,7 +51,7 @@ export {
 // Cache types
 export type { CacheEntry, ProviderDetectionCacheEntry } from './cache.js';
 
-export { CACHE_VERSION, DEFAULT_CACHE_TTL_SECONDS, isCacheEntry, PROVIDER_DETECTION_TTL_SECONDS, isProviderDetectionCacheEntry } from './cache.js';
+export { CACHE_VERSION, DEFAULT_CACHE_TTL_SECONDS, isCacheEntry, isProviderDetectionCacheEntry } from './cache.js';
 
 // Endpoint config types
 export type {

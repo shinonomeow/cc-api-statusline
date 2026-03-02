@@ -17,6 +17,7 @@ import type { CacheEntry } from '../types/index.js';
 import { CACHE_VERSION } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { EXIT_BUFFER_MS } from './constants.js';
+import { classifyFetchError } from './error-classifier.js';
 
 /**
  * Execute a single statusline cycle
@@ -45,6 +46,8 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
           output: cachedEntry.renderedLine,
           exitCode: 0,
           cacheUpdate: null,
+          invalidateProvider: false,
+          path: 'A',
         };
       }
     }
@@ -65,6 +68,8 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
         output: statusline,
         exitCode: 0,
         cacheUpdate: null, // Don't update cache - keep old endpoint hash
+        invalidateProvider: false,
+        path: 'B2',
       };
     }
 
@@ -74,6 +79,8 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       output: errorOutput,
       exitCode: 0,
       cacheUpdate: null,
+      invalidateProvider: false,
+      path: 'B2',
     };
   }
 
@@ -95,6 +102,8 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       output: statusline,
       exitCode: 0,
       cacheUpdate: updatedEntry,
+      invalidateProvider: false,
+      path: 'B',
     };
   }
 
@@ -112,6 +121,8 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       output: errorOutput,
       exitCode: 0,
       cacheUpdate: null,
+      invalidateProvider: false,
+      path: 'D',
     };
   }
 
@@ -126,6 +137,8 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
         output: renderError('missing-env', 'without-cache'),
         exitCode: 0,
         cacheUpdate: null,
+        invalidateProvider: false,
+        path: 'D',
       };
     }
 
@@ -160,10 +173,14 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       output: statusline,
       exitCode: 0,
       cacheUpdate: newEntry,
+      invalidateProvider: false,
+      path: 'C',
     };
   } catch (error: unknown) {
     // Path D: Fetch error - use stale cache with error indicator or error message
     logger.error('Path D: Fetch error', { error: String(error), hasCachedEntry: !!cachedEntry });
+
+    const errorCategory = classifyFetchError(error);
 
     // Determine error type from error object
     let errorState: ErrorState = 'network-error';
@@ -171,16 +188,20 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       const statusCode = (error as { statusCode?: number }).statusCode;
       if (statusCode === 429) {
         errorState = 'rate-limited';
+      } else if (errorCategory === 'site-closed') {
+        errorState = 'network-error';
       } else if (statusCode && statusCode >= 500) {
         errorState = 'server-error';
       } else if (statusCode === 401 || statusCode === 403) {
         errorState = 'auth-error';
       }
+    } else if (errorCategory === 'provider-mismatch') {
+      errorState = 'parse-error';
     }
 
     // Path D2: Fetch error - show error, discard stale cache
     if (cachedEntry) {
-      logger.debug('Discarding stale cache, showing error', { errorState });
+      logger.debug('Discarding stale cache, showing error', { errorState, errorCategory });
     } else {
       logger.warn('No cache available for error fallback');
     }
@@ -189,6 +210,8 @@ export async function executeCycle(ctx: ExecutionContext): Promise<ExecutionResu
       output: errorOutput,
       exitCode: 0,
       cacheUpdate: null,
+      invalidateProvider: errorCategory === 'provider-mismatch',
+      path: 'D',
     };
   }
 }

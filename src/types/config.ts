@@ -4,6 +4,8 @@
  * All configuration types and defaults for cc-api-statusline.
  */
 
+import { DEFAULT_TIMEOUT_BUDGET_MS } from '../core/constants.js';
+
 /**
  * Layout modes control assembly order of parts
  * standard:      label + progress + value + countdown
@@ -250,7 +252,7 @@ export const DEFAULT_CONFIG: Config = {
     chill:   { tiers: buildTiers(['cyan', 'cyan', 'blue', 'blue', 'magenta']) },
   },
   pollIntervalSeconds: 30,
-  pipedRequestTimeoutMs: 3000,
+  pipedRequestTimeoutMs: DEFAULT_TIMEOUT_BUDGET_MS,
 };
 
 /**

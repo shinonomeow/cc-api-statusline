@@ -39,15 +39,26 @@ export interface ExecutionContext {
   /** Provider adapter from getProvider() */
   provider: ProviderAdapter;
 
-  /** Timeout budget in milliseconds (widget: 1000ms, direct: 10000ms) */
+  /** Timeout budget in milliseconds (piped: budget, TTY: budget*2) */
   timeoutBudgetMs: number;
 
   /** Process start time (Date.now()) */
   startTime: number;
 
-  /** Fetch timeout in milliseconds (widget: 800ms, direct: 10000ms) */
+  /** Fetch timeout in milliseconds (capped by budget - headroom) */
   fetchTimeoutMs: number;
 }
+
+/**
+ * Execution path taken by executeCycle
+ *
+ * A = fast cached renderedLine
+ * B = re-render from cached data (config changed)
+ * B2 = endpoint config changed (locked out)
+ * C = fresh fetch
+ * D = fallback (timeout or error)
+ */
+export type ExecutionPath = 'A' | 'B' | 'B2' | 'C' | 'D';
 
 /**
  * Execution result
@@ -63,4 +74,10 @@ export interface ExecutionResult {
 
   /** Cache update (non-null = writeCache()) */
   cacheUpdate: CacheEntry | null;
+
+  /** Signal to invalidate provider detection cache (memory + disk) */
+  invalidateProvider: boolean;
+
+  /** Execution path taken */
+  path: ExecutionPath;
 }

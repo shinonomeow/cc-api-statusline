@@ -74,7 +74,7 @@ Add to `~/.claude/ccstatusline/config.json`:
       {
         "id": "e62435aa-bdf5-4ded-a2e3-ae13582439db",
         "type": "custom-command",
-        "commandPath": "bunx -y cc-api-statusline@latest",
+        "commandPath": "bunx -y cc-api-statusline@latest --embedded",
         "preserveColors": true,
         "timeout": 10000
       }
@@ -82,6 +82,8 @@ Add to `~/.claude/ccstatusline/config.json`:
   ]
 }
 ```
+
+> **`--embedded` is required here.** Without it, cc-api-statusline prepends an ANSI reset (`\x1b[0m`) that breaks cc-statusline's powerline background colors. The flag tells cc-api-statusline it's running inside a host renderer that handles its own formatting.
 
 Using `bunx` ensures you always run the latest version without a global install. To uninstall:
 
@@ -175,6 +177,7 @@ All variables are optional at the shell level — `ANTHROPIC_BASE_URL` and `ANTH
 | `CC_STATUSLINE_PROVIDER` | Yes | Override provider detection (`sub2api`, `claude-relay-service`, or custom) |
 | `CC_STATUSLINE_POLL` | Yes | Override poll interval (seconds, min 5) |
 | `CC_STATUSLINE_TIMEOUT` | Yes | Piped mode timeout (milliseconds, default 5000) |
+| `CC_API_STATUSLINE_EMBEDDED` | Yes | Skip host formatting when set to `"1"` or `"true"`. Alternative to `--embedded` flag; prefer the flag in `commandPath` configs |
 | `DEBUG` or `CC_STATUSLINE_DEBUG` | Yes | Enable debug logging to `~/.claude/cc-api-statusline/debug.log` |
 
 ## Troubleshooting

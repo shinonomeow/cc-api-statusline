@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchClaudeRelayService } from '../claude-relay-service.js';
 import { DEFAULT_CONFIG } from '../../types/config.js';
 import type { Config } from '../../types/index.js';
+import { DEFAULT_TIMEOUT_BUDGET_MS } from '../../core/constants.js';
 
 // Mock the http module
 vi.mock('../http.js', () => ({
@@ -22,6 +23,11 @@ describe('claude-relay-service provider', () => {
     vi.clearAllMocks();
     const httpModule = await import('../http.js');
     mockFetch = httpModule.secureFetch as unknown as ReturnType<typeof vi.fn>;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetAllMocks();
   });
 
   const mockResponse = {
@@ -79,7 +85,7 @@ describe('claude-relay-service provider', () => {
           }),
           body: JSON.stringify({ apiKey: 'test-token' }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         expect.stringMatching(/^claude-cli\/[\d.]+/)
       );
     });
@@ -104,7 +110,7 @@ describe('claude-relay-service provider', () => {
           }),
           body: JSON.stringify({ apiKey: 'test-token' }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         'custom-client/1.0'
       );
     });
@@ -129,7 +135,7 @@ describe('claude-relay-service provider', () => {
           }),
           body: JSON.stringify({ apiKey: 'test-token' }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });
@@ -154,7 +160,7 @@ describe('claude-relay-service provider', () => {
           }),
           body: JSON.stringify({ apiKey: 'test-token' }),
         }),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });
@@ -170,7 +176,7 @@ describe('claude-relay-service provider', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://v2.vexke.com/apiStats/api/user-stats',
         expect.anything(),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });
@@ -183,7 +189,7 @@ describe('claude-relay-service provider', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://relay.example.com/apiStats/api/user-stats',
         expect.anything(),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });
@@ -197,7 +203,7 @@ describe('claude-relay-service provider', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.example.com/apiStats/api/user-stats',
         expect.anything(),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });
@@ -210,7 +216,7 @@ describe('claude-relay-service provider', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         'https://localhost:3000/apiStats/api/user-stats',
         expect.anything(),
-        5000,
+        DEFAULT_TIMEOUT_BUDGET_MS,
         null
       );
     });

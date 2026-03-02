@@ -13,6 +13,8 @@ import {
   readProviderDetectionCache,
   writeProviderDetectionCache,
   getProviderDetectionCachePath,
+  deleteProviderDetectionCache,
+  readDetectionCacheMeta,
 } from '../cache.js';
 import type { CacheEntry, EnvSnapshot, Config } from '../../types/index.js';
 import { CACHE_VERSION, DEFAULT_CONFIG } from '../../types/index.js';
@@ -438,7 +440,7 @@ describe('cache service', () => {
         const expiredEntry = {
           baseUrl,
           provider: 'sub2api',
-          detectedVia: 'url-pattern' as const,
+          detectedVia: 'health-probe' as const,
           detectedAt: new Date(Date.now() - 90000 * 1000).toISOString(), // 90000 seconds ago
           ttlSeconds: 86400, // 24 hours
         };
@@ -474,9 +476,8 @@ describe('cache service', () => {
       });
 
       it('should handle all detection methods', () => {
-        const methods: Array<'health-probe' | 'url-pattern' | 'override'> = [
+        const methods: Array<'health-probe' | 'override'> = [
           'health-probe',
-          'url-pattern',
           'override',
         ];
 
@@ -520,7 +521,7 @@ describe('cache service', () => {
         const entry1 = {
           baseUrl,
           provider: 'sub2api',
-          detectedVia: 'url-pattern' as const,
+          detectedVia: 'health-probe' as const,
           detectedAt: new Date().toISOString(),
           ttlSeconds: 86400,
         };
@@ -539,6 +540,102 @@ describe('cache service', () => {
         // Read should get the last write (entry2)
         const read = readProviderDetectionCache(baseUrl);
         expect(read?.provider).toBe('claude-relay-service');
+      });
+    });
+
+    describe('readDetectionCacheMeta', () => {
+      it('returns {ageMs: null, ttlMs: 86400000} when no cache file exists', () => {
+        const meta = readDetectionCacheMeta('https://nonexistent.example.com');
+        expect(meta.ageMs).toBeNull();
+        expect(meta.ttlMs).toBe(86400 * 1000);
+      });
+
+      it('returns ageMs and stored ttlMs for a valid cache file', () => {
+        const baseUrl = 'https://api.example.com';
+        const detectedAt = new Date(Date.now() - 5000).toISOString(); // 5s ago
+        writeProviderDetectionCache(baseUrl, {
+          baseUrl,
+          provider: 'sub2api',
+          detectedVia: 'health-probe',
+          detectedAt,
+          ttlSeconds: 86400,
+        });
+
+        const meta = readDetectionCacheMeta(baseUrl);
+        expect(meta.ageMs).not.toBeNull();
+        expect(meta.ageMs!).toBeGreaterThanOrEqual(4000);
+        expect(meta.ageMs!).toBeLessThanOrEqual(7000);
+        expect(meta.ttlMs).toBe(86400 * 1000);
+      });
+
+      it('returns custom stored TTL converted to ms', () => {
+        const baseUrl = 'https://api.example.com';
+        writeProviderDetectionCache(baseUrl, {
+          baseUrl,
+          provider: 'sub2api',
+          detectedVia: 'health-probe',
+          detectedAt: new Date().toISOString(),
+          ttlSeconds: 172800, // 48h
+        });
+
+        const meta = readDetectionCacheMeta(baseUrl);
+        expect(meta.ttlMs).toBe(172800 * 1000);
+      });
+
+      it('returns ageMs even when TTL is expired (does not delete like readProviderDetectionCache)', () => {
+        const baseUrl = 'https://api.example.com';
+        const detectedAt = new Date(Date.now() - 90001 * 1000).toISOString();
+        writeProviderDetectionCache(baseUrl, {
+          baseUrl,
+          provider: 'sub2api',
+          detectedVia: 'health-probe',
+          detectedAt,
+          ttlSeconds: 1,
+        });
+
+        const meta = readDetectionCacheMeta(baseUrl);
+        expect(meta.ageMs).not.toBeNull();
+        expect(meta.ageMs!).toBeGreaterThan(86400000);
+      });
+
+      it('returns {ageMs: null, ttlMs: default} for invalid JSON', () => {
+        const baseUrl = 'https://api.example.com';
+        const path = getProviderDetectionCachePath(baseUrl);
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, 'not-json', 'utf-8');
+        const meta = readDetectionCacheMeta(baseUrl);
+        expect(meta.ageMs).toBeNull();
+        expect(meta.ttlMs).toBe(86400 * 1000);
+      });
+    });
+
+    describe('deleteProviderDetectionCache', () => {
+      it('should delete an existing provider detection cache file', () => {
+        const baseUrl = 'https://api.example.com';
+        const entry = {
+          provider: 'sub2api',
+          detectedAt: new Date().toISOString(),
+          ttlSeconds: 86400,
+        };
+
+        writeProviderDetectionCache(baseUrl, entry);
+        const path = getProviderDetectionCachePath(baseUrl);
+        expect(existsSync(path)).toBe(true);
+
+        deleteProviderDetectionCache(baseUrl);
+        expect(existsSync(path)).toBe(false);
+      });
+
+      it('should not throw when file does not exist (ENOENT)', () => {
+        const baseUrl = 'https://nonexistent.example.com';
+        // Should not throw
+        expect(() => deleteProviderDetectionCache(baseUrl)).not.toThrow();
+      });
+
+      it('should return undefined (fire-and-forget)', () => {
+        const baseUrl = 'https://api.example.com';
+        const result = deleteProviderDetectionCache(baseUrl);
+        expect(result).toBeUndefined();
       });
     });
   });
