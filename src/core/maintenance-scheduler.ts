@@ -9,7 +9,7 @@
  */
 
 import type { ExecutionPath } from './types.js';
-import { DETECTION_TTL_BASE_S, DETECTION_TTL_MAX_S, DETECTION_TTL_CHANGED_S, DETECTION_TTL_FAILED_S, MAINTENANCE_GC_PROBABILITY } from './constants.js';
+import { DETECTION_TTL_MAX_S, DETECTION_TTL_CHANGED_S, DETECTION_TTL_FAILED_S, MAINTENANCE_GC_PROBABILITY } from './constants.js';
 
 export type MaintenanceTask = 'health-probe' | 'cache-gc' | 'none';
 
@@ -79,4 +79,3 @@ export function computeDynamicDetectionTtl(
   // Provider stable → extend: double current TTL, capped at maximum
   return Math.min(currentTtlSeconds * 2, DETECTION_TTL_MAX_S);
 }
-

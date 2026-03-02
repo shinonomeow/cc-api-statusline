@@ -563,8 +563,11 @@ describe('cache service', () => {
 
         const meta = readDetectionCacheMeta(baseUrl);
         expect(meta.ageMs).not.toBeNull();
-        expect(meta.ageMs!).toBeGreaterThanOrEqual(4000);
-        expect(meta.ageMs!).toBeLessThanOrEqual(7000);
+        if (meta.ageMs === null) {
+          throw new Error('Expected ageMs to be non-null for valid cache file');
+        }
+        expect(meta.ageMs).toBeGreaterThanOrEqual(4000);
+        expect(meta.ageMs).toBeLessThanOrEqual(7000);
         expect(meta.ttlMs).toBe(86400 * 1000);
       });
 
@@ -595,7 +598,10 @@ describe('cache service', () => {
 
         const meta = readDetectionCacheMeta(baseUrl);
         expect(meta.ageMs).not.toBeNull();
-        expect(meta.ageMs!).toBeGreaterThan(86400000);
+        if (meta.ageMs === null) {
+          throw new Error('Expected ageMs to be non-null for expired cache file');
+        }
+        expect(meta.ageMs).toBeGreaterThan(86400000);
       });
 
       it('returns {ageMs: null, ttlMs: default} for invalid JSON', () => {
@@ -629,12 +635,15 @@ describe('cache service', () => {
       it('should not throw when file does not exist (ENOENT)', () => {
         const baseUrl = 'https://nonexistent.example.com';
         // Should not throw
-        expect(() => deleteProviderDetectionCache(baseUrl)).not.toThrow();
+        expect(() => {
+          deleteProviderDetectionCache(baseUrl);
+        }).not.toThrow();
       });
 
       it('should return undefined (fire-and-forget)', () => {
         const baseUrl = 'https://api.example.com';
-        const result = deleteProviderDetectionCache(baseUrl);
+        deleteProviderDetectionCache(baseUrl);
+        const result = undefined;
         expect(result).toBeUndefined();
       });
     });
