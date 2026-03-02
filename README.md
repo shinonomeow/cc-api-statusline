@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-<img src="docs/images/banner-screenshot.png" width="600" alt="cc-api-statusline banner">
+<img src="docs/images/banner-screenshot.png" width="800" alt="cc-api-statusline banner">
 
 A high-performance TUI statusline tool that polls API usage data from Claude API services (sub2api, claude-relay-service, or custom providers) and renders a configurable one-line status display.
 
@@ -64,7 +64,7 @@ This adds to `~/.claude/settings.json`:
 ```
 
 ### 3.b Install as [ccstatusline](https://github.com/anthropics/claude-code) Custom Command
-<img src="docs/images/ccstatusline-command.png" width="600" alt="ccstatusline-command mode">
+<img src="docs/images/ccstatusline-command.png" width="800" alt="ccstatusline-command mode">
 Add to `~/.claude/ccstatusline/config.json`:
 
 ```json
