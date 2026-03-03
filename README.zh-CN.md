@@ -60,7 +60,7 @@ bunx cc-api-statusline@latest --install
   }
 }
 ```
-### 3.b 安装为 [ccstatusline](https://github.com/anthropics/claude-code) 自定义命令
+### 3.b 安装为 [ccstatusline](https://github.com/sirmalloc/ccstatusline) 自定义命令
 <img src="docs/images/ccstatusline-command.png" width="800" alt="ccstatusline-command mode">
 在 `~/.claude/ccstatusline/config.json` 中添加如下配置：
 
