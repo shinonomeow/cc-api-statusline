@@ -63,7 +63,7 @@ This adds to `~/.claude/settings.json`:
 }
 ```
 
-### 3.b Install as [ccstatusline](https://github.com/anthropics/claude-code) Custom Command
+### 3.b Install as [ccstatusline](https://github.com/sirmalloc/ccstatusline) Custom Command
 <img src="docs/images/ccstatusline-command.png" width="800" alt="ccstatusline-command mode">
 Add to `~/.claude/ccstatusline/config.json`:
 
