@@ -209,6 +209,37 @@ describe('renderComponent - quota components', () => {
     });
   });
 
+  describe('small percentage values (>0 and <10)', () => {
+    test('renders 1 decimal for usage between 0% and 10%', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(5, 100), // 5%
+      });
+      const result = renderComponent('daily', data, { progressStyle: 'hidden', countdown: false }, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('5.0%');
+      expect(plain).not.toContain('5%');
+    });
+
+    test('renders 1 decimal for fractional small percentage', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(3, 100), // 3%
+      });
+      const result = renderComponent('daily', data, { progressStyle: 'hidden', countdown: false }, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('3.0%');
+    });
+
+    test('renders integer for percentage >= 10', () => {
+      const data = createMockUsage({
+        daily: createQuotaWindow(24, 100), // 24%
+      });
+      const result = renderComponent('daily', data, { progressStyle: 'hidden', countdown: false }, DEFAULT_CONFIG);
+      const plain = stripAnsi(result ?? '');
+      expect(plain).toContain('24%');
+      expect(plain).not.toContain('24.0%');
+    });
+  });
+
   describe('null handling', () => {
     test('returns null for missing daily data', () => {
       const data = createMockUsage({ daily: null });

@@ -45,8 +45,8 @@ describe('ansiColor', () => {
 
 describe('ansiColor - theme colors', () => {
   test('resolves "cool" theme color to truecolor ANSI', () => {
-    // cool = #56B6C2 = rgb(86, 182, 194)
-    expect(ansiColor('text', 'cool')).toBe('\x1b[38;2;86;182;194mtext\x1b[0m');
+    // cool = #569AD4 = rgb(86, 154, 212)
+    expect(ansiColor('text', 'cool')).toBe('\x1b[38;2;86;154;212mtext\x1b[0m');
   });
 
   test('resolves "comfortable" theme color to truecolor ANSI', () => {
@@ -70,7 +70,7 @@ describe('ansiColor - theme colors', () => {
   });
 
   test('theme colors are case-insensitive', () => {
-    expect(ansiColor('text', 'Cool')).toBe('\x1b[38;2;86;182;194mtext\x1b[0m');
+    expect(ansiColor('text', 'Cool')).toBe('\x1b[38;2;86;154;212mtext\x1b[0m');
     expect(ansiColor('text', 'CRITICAL')).toBe('\x1b[38;2;212;90;90mtext\x1b[0m');
     expect(ansiColor('text', 'WaRm')).toBe('\x1b[38;2;201;168;76mtext\x1b[0m');
   });

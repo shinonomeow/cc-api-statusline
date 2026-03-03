@@ -155,8 +155,11 @@ function renderQuotaComponent(
   const progress = renderProgress(progressStyle, usagePercent, barSize, barStyle, barColor, null, renderContext);
 
   // Render value (percentage)
+  const percentText = usagePercent > 0 && usagePercent < 10
+    ? `${(Math.round(usagePercent * 10) / 10).toFixed(1)}%`
+    : `${Math.round(usagePercent)}%`;
   const value = showPercentage
-    ? ansiColor(`${Math.round(usagePercent)}%`, valueColor, renderContext)
+    ? ansiColor(percentText, valueColor, renderContext)
     : '';
 
   // Render secondary display (countdown or cost fallback)

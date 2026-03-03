@@ -13,10 +13,22 @@ describe('formatCurrency', () => {
     expect(formatCurrency(0)).toBe('$0');
   });
 
-  it('floors decimals to integers', () => {
+  it('floors decimals to integers for values >= 10', () => {
     expect(formatCurrency(65.99)).toBe('$65');
     expect(formatCurrency(156.5)).toBe('$156');
-    expect(formatCurrency(0.99)).toBe('$0');
+  });
+
+  it('shows 1 decimal for values > 0 and < 10', () => {
+    expect(formatCurrency(0.2)).toBe('$0.2');
+    expect(formatCurrency(0.5)).toBe('$0.5');
+    expect(formatCurrency(0.99)).toBe('$1.0');
+    expect(formatCurrency(5.3)).toBe('$5.3');
+    expect(formatCurrency(9.9)).toBe('$9.9');
+  });
+
+  it('floors at boundary values', () => {
+    expect(formatCurrency(10.0)).toBe('$10');
+    expect(formatCurrency(0)).toBe('$0');
   });
 
   it('handles large numbers', () => {
@@ -36,8 +48,13 @@ describe('formatCurrencyQuota', () => {
     expect(formatCurrencyQuota(0, 100)).toBe('$0/$100');
   });
 
-  it('floors both values', () => {
+  it('floors both values >= 10', () => {
     expect(formatCurrencyQuota(65.99, 275.5)).toBe('$65/$275');
+  });
+
+  it('shows 1 decimal for small used values', () => {
+    expect(formatCurrencyQuota(5.3, 275)).toBe('$5.3/$275');
+    expect(formatCurrencyQuota(0.5, 100)).toBe('$0.5/$100');
   });
 });
 

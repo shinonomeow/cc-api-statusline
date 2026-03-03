@@ -3,11 +3,16 @@
  */
 
 /**
- * Format a number as currency (USD) with no decimals
+ * Format a number as currency (USD).
+ * Values >0 and <10 show one decimal digit; others floor to integer.
  * @param n - The number to format
- * @returns Formatted string like "$65"
+ * @returns Formatted string like "$65" or "$5.3"
  */
 export function formatCurrency(n: number): string {
+  if (n > 0 && n < 10) {
+    const rounded = Math.round(n * 10) / 10;
+    return `$${rounded.toFixed(1)}`;
+  }
   return `$${Math.floor(n)}`;
 }
 
