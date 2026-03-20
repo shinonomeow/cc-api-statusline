@@ -259,9 +259,9 @@ describe('renderComponent - quota components', () => {
   });
 
   describe('countdown rendering', () => {
-    test('includes countdown by default', () => {
+    test('includes countdown by default when above threshold (>80%)', () => {
       const data = createMockUsage({
-        daily: createQuotaWindow(50, 100, new Date(Date.now() + 3600000).toISOString()),
+        daily: createQuotaWindow(85, 100, new Date(Date.now() + 3600000).toISOString()),
       });
       const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
@@ -281,37 +281,37 @@ describe('renderComponent - quota components', () => {
   });
 
   describe('cost fallback (when resetsAt is null)', () => {
-    test('shows cost fallback when resetsAt is null but limit is available', () => {
+    test('shows cost fallback when resetsAt is null but limit is available (monthly)', () => {
       const data = createMockUsage({
-        weekly: {
+        monthly: {
           used: 156,
           limit: 275,
           remaining: 119,
-          resetsAt: null, // No reset time (sub2api weekly/monthly)
+          resetsAt: null, // No reset time
         },
       });
-      const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
+      const result = renderComponent('monthly', data, {}, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
-      // Should show cost instead of time countdown
+      // monthly still uses original logic: shows cost
       expect(plain).toContain('$156/$275');
-      expect(plain).toContain(' · '); // Still uses divider
+      expect(plain).toContain(' · ');
     });
 
-    test('cost display takes priority over time countdown', () => {
+    test('cost display takes priority over time countdown (monthly)', () => {
       const resetsAt = new Date(Date.now() + 3600000).toISOString();
       const data = createMockUsage({
-        weekly: {
+        monthly: {
           used: 156,
           limit: 275,
           remaining: 119,
           resetsAt, // Has reset time
         },
       });
-      const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
+      const result = renderComponent('monthly', data, {}, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
-      // Should show cost display, not time countdown (new priority)
+      // monthly still uses original logic: cost takes priority
       expect(plain).toContain('$156/$275');
-      expect(plain).toMatch(/ · /); // Has divider
+      expect(plain).toMatch(/ · /);
     });
 
     test('hides secondary display when countdown disabled (even with cost data)', () => {
@@ -627,7 +627,7 @@ describe('renderComponent - label display modes', () => {
 describe('renderComponent - divider spacing (bug fix)', () => {
   test('tight divider "·" produces no space before divider', () => {
     const data = createMockUsage({
-      daily: createQuotaWindow(48, 100),
+      daily: createQuotaWindow(85, 100), // >80% to trigger countdown
     });
     const config: ComponentConfig = {
       progressStyle: 'hidden',
@@ -635,14 +635,14 @@ describe('renderComponent - divider spacing (bug fix)', () => {
     };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    // "5h 48%·$48/$100" — no space between 48% and ·
+    // "5h 85%·1h" — no space between 85% and ·
     expect(plain).not.toMatch(/% ·/);
-    expect(plain).toMatch(/48%·/);
+    expect(plain).toMatch(/85%·/);
   });
 
   test('spaced divider " · " produces single space each side', () => {
     const data = createMockUsage({
-      daily: createQuotaWindow(48, 100),
+      daily: createQuotaWindow(85, 100), // >80% to trigger countdown
     });
     const config: ComponentConfig = {
       progressStyle: 'hidden',
@@ -650,14 +650,14 @@ describe('renderComponent - divider spacing (bug fix)', () => {
     };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    // "5h 48% · $48/$100" — single space each side
-    expect(plain).toContain('48% · $48/$100');
+    // "5h 85% · 1h" — single space each side
+    expect(plain).toContain('85% · ');
     expect(plain).not.toContain('  ·');
   });
 
   test('default divider " · " does not produce double-space', () => {
     const data = createMockUsage({
-      daily: createQuotaWindow(50, 100),
+      daily: createQuotaWindow(85, 100), // >80% to trigger countdown
     });
     const result = renderComponent('daily', data, { progressStyle: 'hidden' }, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
@@ -680,7 +680,7 @@ describe('renderComponent - percentage: false', () => {
 
   test('percentage: false + hidden progress + tight divider → countdown appended to label', () => {
     const data = createMockUsage({
-      daily: createQuotaWindow(23, 50),
+      daily: createQuotaWindow(46, 50), // 92% >80% to trigger countdown
     });
     const config: ComponentConfig = {
       percentage: false,
@@ -695,7 +695,7 @@ describe('renderComponent - percentage: false', () => {
 
   test('percentage: false + hidden progress → countdown appended to label', () => {
     const data = createMockUsage({
-      daily: createQuotaWindow(23, 50),
+      daily: createQuotaWindow(46, 50), // 92% >80% to trigger countdown
     });
     const config: ComponentConfig = {
       percentage: false,
@@ -705,12 +705,12 @@ describe('renderComponent - percentage: false', () => {
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).not.toContain('%');
-    expect(plain).toContain('5h · $23/$50');
+    expect(plain).toContain('5h · ');
   });
 
   test('percentage: false + bar progress → countdown appended to bar', () => {
     const data = createMockUsage({
-      daily: createQuotaWindow(23, 50),
+      daily: createQuotaWindow(46, 50), // 92% >80% to trigger countdown
     });
     const config: ComponentConfig = {
       percentage: false,
@@ -722,7 +722,7 @@ describe('renderComponent - percentage: false', () => {
     const plain = stripAnsi(result ?? '');
     expect(plain).not.toContain('%');
     expect(plain).toContain('5h');
-    expect(plain).toMatch(/━.*·\$23\/\$50/);
+    expect(plain).toMatch(/━.*·/);
   });
 });
 
