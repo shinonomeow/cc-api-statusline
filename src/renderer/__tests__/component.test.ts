@@ -45,7 +45,7 @@ describe('renderComponent - quota components', () => {
       const result = renderComponent('daily', data, {}, DEFAULT_CONFIG);
       expect(result).toBeTruthy();
       const plain = stripAnsi(result ?? '');
-      expect(plain).toContain('Daily');
+      expect(plain).toContain('5h');
       expect(plain).toContain('24%');
     });
 
@@ -56,7 +56,7 @@ describe('renderComponent - quota components', () => {
       const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
       expect(result).toBeTruthy();
       const plain = stripAnsi(result ?? '');
-      expect(plain).toContain('Weekly');
+      expect(plain).toContain('7d');
       expect(plain).toContain('25%');
     });
 
@@ -67,7 +67,7 @@ describe('renderComponent - quota components', () => {
       const result = renderComponent('monthly', data, {}, DEFAULT_CONFIG);
       expect(result).toBeTruthy();
       const plain = stripAnsi(result ?? '');
-      expect(plain).toContain('Monthly');
+      expect(plain).toContain('7d Sonnet');
       expect(plain).toContain('80%');
     });
   });
@@ -92,7 +92,7 @@ describe('renderComponent - quota components', () => {
       const config: ComponentConfig = { displayMode: 'hidden' };
       const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
       const plain = stripAnsi(result ?? '');
-      expect(plain).not.toContain('Daily');
+      expect(plain).not.toContain('5h');
       expect(plain).not.toContain('D');
       expect(plain).toContain('50%'); // Value still shown
     });
@@ -343,7 +343,7 @@ describe('renderComponent - quota components', () => {
       const result = renderComponent('monthly', data, {}, DEFAULT_CONFIG);
       // Component should still render (has data), but no secondary display
       const plain = stripAnsi(result ?? '');
-      expect(plain).toContain('Monthly');
+      expect(plain).toContain('7d Sonnet');
       expect(plain).not.toMatch(/ · /);
     });
   });
@@ -494,7 +494,7 @@ describe('renderComponent - custom labels', () => {
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).toContain('Today');
-    expect(plain).not.toContain('Daily');
+    expect(plain).not.toContain('5h');
   });
 
   test('uses custom object label text in text mode', () => {
@@ -526,7 +526,7 @@ describe('renderComponent - custom labels', () => {
     const config: ComponentConfig = { label: false };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    expect(plain).not.toContain('Daily');
+    expect(plain).not.toContain('5h');
     expect(plain).not.toContain('D');
   });
 });
@@ -586,7 +586,7 @@ describe('renderComponent - label display modes', () => {
     const data = createMockUsage({ daily: createQuotaWindow(50, 100) });
     const result = renderComponent('daily', data, { displayMode: 'text' }, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    expect(plain).toContain('Daily');
+    expect(plain).toContain('5h');
   });
 
   test('compact mode uses single-char label', () => {
@@ -594,7 +594,7 @@ describe('renderComponent - label display modes', () => {
     const result = renderComponent('daily', data, { displayMode: 'compact' }, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).toMatch(/^D /);
-    expect(plain).not.toContain('Daily');
+    expect(plain).not.toContain('5h');
   });
 
   test('emoji mode uses emoji label', () => {
@@ -602,7 +602,7 @@ describe('renderComponent - label display modes', () => {
     const result = renderComponent('daily', data, { displayMode: 'emoji' }, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).toContain('📅'); // Default calendar emoji
-    expect(plain).not.toContain('Daily');
+    expect(plain).not.toContain('5h');
   });
 
   test('custom emoji overrides default in emoji mode', () => {
@@ -618,7 +618,7 @@ describe('renderComponent - label display modes', () => {
     const data = createMockUsage({ daily: createQuotaWindow(50, 100) });
     const result = renderComponent('daily', data, { displayMode: 'hidden' }, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    expect(plain).not.toContain('Daily');
+    expect(plain).not.toContain('5h');
     expect(plain).not.toContain('D');
     expect(plain).toContain('50%');
   });
@@ -635,7 +635,7 @@ describe('renderComponent - divider spacing (bug fix)', () => {
     };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    // "Daily 48%·$48/$100" — no space between 48% and ·
+    // "5h 48%·$48/$100" — no space between 48% and ·
     expect(plain).not.toMatch(/% ·/);
     expect(plain).toMatch(/48%·/);
   });
@@ -650,7 +650,7 @@ describe('renderComponent - divider spacing (bug fix)', () => {
     };
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    // "Daily 48% · $48/$100" — single space each side
+    // "5h 48% · $48/$100" — single space each side
     expect(plain).toContain('48% · $48/$100');
     expect(plain).not.toContain('  ·');
   });
@@ -675,7 +675,7 @@ describe('renderComponent - percentage: false', () => {
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).not.toContain('%');
-    expect(plain).toContain('Daily');
+    expect(plain).toContain('5h');
   });
 
   test('percentage: false + hidden progress + tight divider → countdown appended to label', () => {
@@ -690,7 +690,7 @@ describe('renderComponent - percentage: false', () => {
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).not.toContain('%');
-    expect(plain).toMatch(/Daily·/);
+    expect(plain).toMatch(/5h·/);
   });
 
   test('percentage: false + hidden progress → countdown appended to label', () => {
@@ -705,7 +705,7 @@ describe('renderComponent - percentage: false', () => {
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).not.toContain('%');
-    expect(plain).toContain('Daily · $23/$50');
+    expect(plain).toContain('5h · $23/$50');
   });
 
   test('percentage: false + bar progress → countdown appended to bar', () => {
@@ -721,19 +721,19 @@ describe('renderComponent - percentage: false', () => {
     const result = renderComponent('daily', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).not.toContain('%');
-    expect(plain).toContain('Daily');
+    expect(plain).toContain('5h');
     expect(plain).toMatch(/━.*·\$23\/\$50/);
   });
 });
 
 describe('renderComponent - qualifier labels (Plan B)', () => {
-  test('renders qualifier in standard layout: "Weekly(Opus)"', () => {
+  test('renders qualifier in standard layout: "7d(Opus)"', () => {
     const data = createMockUsage({
       weekly: { used: 20, limit: 50, remaining: 30, resetsAt: null, qualifier: 'Opus' },
     });
     const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    expect(plain).toContain('Weekly(Opus)');
+    expect(plain).toContain('7d(Opus)');
   });
 
   test('renders qualifier in compact displayMode: "W(O)"', () => {
@@ -754,7 +754,7 @@ describe('renderComponent - qualifier labels (Plan B)', () => {
     const result = renderComponent('weekly', data, config, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
     expect(plain).not.toContain('Opus');
-    expect(plain).not.toContain('Weekly');
+    expect(plain).not.toContain('7d');
   });
 
   test('renders normally without qualifier', () => {
@@ -763,7 +763,7 @@ describe('renderComponent - qualifier labels (Plan B)', () => {
     });
     const result = renderComponent('weekly', data, {}, DEFAULT_CONFIG);
     const plain = stripAnsi(result ?? '');
-    expect(plain).toContain('Weekly');
+    expect(plain).toContain('7d');
     expect(plain).not.toContain('(');
   });
 

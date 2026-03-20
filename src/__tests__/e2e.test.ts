@@ -338,7 +338,7 @@ describe('E2E - Cache Paths', () => {
     expect(result.status).toBe(0);
     expect(result.stdout.length).toBeGreaterThan(0);
     expect(result.stdout).not.toBe(staleRenderedLine);
-    expect(stripAnsi(result.stdout)).toContain('Weekly');
+    expect(stripAnsi(result.stdout)).toContain('7d');
   });
 });
 

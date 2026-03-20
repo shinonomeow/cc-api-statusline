@@ -73,9 +73,9 @@ describe('renderStatusline', () => {
       const plain = stripAnsi(result);
 
       // Verify components render (some may be truncated due to terminal width)
-      expect(plain).toContain('Daily');
-      expect(plain).toContain('Weekly');
-      expect(plain).toContain('Monthly');
+      expect(plain).toContain('5h');
+      expect(plain).toContain('7d');
+      expect(plain).toContain('7d Sonnet');
       // Balance, Tokens may be truncated depending on terminal width
       // Just verify we got a valid statusline
       expect(plain.length).toBeGreaterThan(0);
@@ -90,9 +90,9 @@ describe('renderStatusline', () => {
       const result = renderStatusline(data, DEFAULT_CONFIG);
       const plain = stripAnsi(result);
 
-      expect(plain).toContain('Daily');
-      expect(plain).not.toContain('Weekly');
-      expect(plain).not.toContain('Monthly');
+      expect(plain).toContain('5h');
+      expect(plain).not.toContain('7d');
+      expect(plain).not.toContain('7d Sonnet');
       expect(plain).not.toContain('Balance');
       expect(plain).not.toContain('Tokens');
     });
@@ -120,8 +120,8 @@ describe('renderStatusline', () => {
 
       // Check order by position
       const balancePos = plain.indexOf('Balance');
-      const weeklyPos = plain.indexOf('Weekly');
-      const dailyPos = plain.indexOf('Daily');
+      const weeklyPos = plain.indexOf('7d');
+      const dailyPos = plain.indexOf('5h');
 
       expect(balancePos).toBeGreaterThan(-1);
       expect(weeklyPos).toBeGreaterThan(balancePos);
@@ -148,8 +148,8 @@ describe('renderStatusline', () => {
 
       // Balance should come first, then daily, then weekly (default order)
       const balancePos = plain.indexOf('Balance');
-      const dailyPos = plain.indexOf('Daily');
-      const weeklyPos = plain.indexOf('Weekly');
+      const dailyPos = plain.indexOf('5h');
+      const weeklyPos = plain.indexOf('7d');
 
       expect(balancePos).toBeGreaterThan(-1);
       expect(dailyPos).toBeGreaterThan(balancePos);
@@ -175,8 +175,8 @@ describe('renderStatusline', () => {
       const result = renderStatusline(data, config);
       const plain = stripAnsi(result);
 
-      expect(plain).toContain('Daily');
-      expect(plain).not.toContain('Weekly');
+      expect(plain).toContain('5h');
+      expect(plain).not.toContain('7d');
     });
   });
 
@@ -233,8 +233,8 @@ describe('renderStatusline', () => {
 
       expect(plain).not.toContain('|');
       // Both components should still be present
-      expect(plain).toContain('Daily');
-      expect(plain).toContain('Weekly');
+      expect(plain).toContain('5h');
+      expect(plain).toContain('7d');
     });
   });
 
@@ -248,7 +248,7 @@ describe('renderStatusline', () => {
       const plain = stripAnsi(result);
 
       // Should have both daily component and error indicator
-      expect(plain).toContain('Daily');
+      expect(plain).toContain('5h');
       expect(plain).toContain('[offline]');
     });
 
@@ -263,7 +263,7 @@ describe('renderStatusline', () => {
       // Should only show error, no components
       expect(plain).toContain('⚠');
       expect(plain).toContain('Auth error');
-      expect(plain).not.toContain('Daily');
+      expect(plain).not.toContain('5h');
     });
 
     test('handles transition states', () => {
@@ -277,7 +277,7 @@ describe('renderStatusline', () => {
       // Transition states replace all output
       expect(plain).toContain('⟳');
       expect(plain).toContain('Switching provider');
-      expect(plain).not.toContain('Daily'); // Component should not appear
+      expect(plain).not.toContain('5h'); // Component should not appear
     });
   });
 
@@ -301,7 +301,7 @@ describe('renderStatusline', () => {
             ...DEFAULT_CONFIG.display,
             progressStyle: 'bar', // Use bar mode so each component is wide enough to require truncation
             barStyle: 'classic',
-            maxWidth: 40, // 40% of 50 = 20 chars - force hard truncation
+            maxWidth: 24, // 24% of 50 = 12 chars - force hard truncation
           },
         };
 
@@ -311,7 +311,7 @@ describe('renderStatusline', () => {
         // Total output would be much longer than 20 chars
         // After component dropping and hard truncation, should have ellipsis
         expect(plain).toContain('…');
-        expect(plain.length).toBeLessThanOrEqual(21); // maxWidth (20) + ellipsis
+        expect(plain.length).toBeLessThanOrEqual(14); // maxWidth (12) + ellipsis
       } finally {
         // Restore original value
         if (originalColumns !== undefined) {
@@ -384,7 +384,7 @@ describe('renderStatusline', () => {
       const plain = stripAnsi(result);
 
       // Hidden displayMode shows no labels
-      expect(plain).not.toContain('Daily');
+      expect(plain).not.toContain('5h');
       expect(plain).not.toContain('D');
       expect(plain).toContain('24%'); // Should have percentage
     });
@@ -408,7 +408,7 @@ describe('renderStatusline', () => {
       const plain = stripAnsi(result);
 
       // Should have label and percentage
-      expect(plain).toContain('Daily');
+      expect(plain).toContain('5h');
       expect(plain).toContain('24%');
 
       // Percentage should come before bar
@@ -547,9 +547,9 @@ describe('renderStatusline', () => {
       const result = renderStatusline(data, DEFAULT_CONFIG);
       const plain = stripAnsi(result);
 
-      expect(plain).toContain('Daily');
-      expect(plain).not.toContain('Weekly');
-      expect(plain).toContain('Monthly');
+      expect(plain).toContain('5h');
+      expect(plain).not.toMatch(/(?<!\w)7d(?! Sonnet)/);
+      expect(plain).toContain('7d Sonnet');
       expect(plain).not.toContain('Balance');
     });
   });
@@ -577,8 +577,8 @@ describe('renderStatusline', () => {
       const plain = stripAnsi(result);
 
       // Both should show their components with values
-      expect(plain).toContain('Daily');
-      expect(plain).toContain('Weekly');
+      expect(plain).toContain('5h');
+      expect(plain).toContain('7d');
       expect(plain).toContain('24%');
       expect(plain).toContain('25%');
     });
@@ -605,7 +605,7 @@ describe('renderStatusline', () => {
       const plain = stripAnsi(result);
 
       // Daily should have full label, weekly should have single letter
-      expect(plain).toContain('Daily');
+      expect(plain).toContain('5h');
       expect(plain).toMatch(/\bW\b/); // "W" for Weekly
     });
   });
