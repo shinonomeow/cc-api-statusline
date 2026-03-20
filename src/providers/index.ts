@@ -8,6 +8,7 @@ import type { NormalizedUsage, Config } from '../types/index.js';
 import type { EndpointConfigRegistry } from '../types/endpoint-config.js';
 import { fetchSub2api } from './sub2api.js';
 import { fetchClaudeRelayService } from './claude-relay-service.js';
+import { fetchCrsAdmin } from './crs-admin.js';
 import { fetchEndpoint } from './endpoint-fetch.js';
 
 /**
@@ -37,6 +38,9 @@ const BUILT_IN_ADAPTERS: Record<string, ProviderAdapter> = {
   },
   'claude-relay-service': {
     fetch: fetchClaudeRelayService,
+  },
+  'crs-admin': {
+    fetch: fetchCrsAdmin,
   },
 };
 

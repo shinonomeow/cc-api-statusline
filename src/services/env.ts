@@ -17,6 +17,8 @@ export interface EnvSnapshot {
   tokenHash: string | null; // shortHash of authToken, for cache validation
   providerOverride: string | null; // CC_STATUSLINE_PROVIDER
   pollIntervalOverride: number | null; // CC_STATUSLINE_POLL (seconds)
+  accountId: string | null; // CC_STATUSLINE_ACCOUNT_ID (for crs-admin provider)
+  crsApiKey: string | null; // CC_STATUSLINE_CRS_API_KEY (x-api-key for crs-admin provider)
 }
 
 /**
@@ -98,6 +100,8 @@ export function readCurrentEnv(): EnvSnapshot {
   const authToken = getEnv('ANTHROPIC_AUTH_TOKEN');
   const providerOverride = getEnv('CC_STATUSLINE_PROVIDER');
   const pollIntervalRaw = getEnv('CC_STATUSLINE_POLL');
+  const accountId = getEnv('CC_STATUSLINE_ACCOUNT_ID');
+  const crsApiKey = getEnv('CC_STATUSLINE_CRS_API_KEY');
 
   // Compute token hash if token is present
   const tokenHash = authToken ? shortHash(authToken, 12) : null;
@@ -117,6 +121,8 @@ export function readCurrentEnv(): EnvSnapshot {
     tokenHash,
     providerOverride,
     pollIntervalOverride,
+    accountId,
+    crsApiKey,
   };
 }
 
